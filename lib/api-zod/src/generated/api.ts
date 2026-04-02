@@ -123,6 +123,7 @@ export const ListInterviewSessionsResponse = zod.array(
 export const CreateInterviewSessionBody = zod.object({
   jobRole: zod.string(),
   jobRoleName: zod.string(),
+  jobContext: zod.string().optional(),
 });
 
 /**

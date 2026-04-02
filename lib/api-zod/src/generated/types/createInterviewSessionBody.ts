@@ -9,4 +9,5 @@
 export interface CreateInterviewSessionBody {
   jobRole: string;
   jobRoleName: string;
+  jobContext?: string;
 }

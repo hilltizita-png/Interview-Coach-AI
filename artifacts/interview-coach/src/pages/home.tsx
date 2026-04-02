@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useListJobRoles, useCreateInterviewSession } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -6,17 +7,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 import { ArrowRight, Briefcase } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import JobInput from "@/components/JobInput";
 
 export default function Home() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [jobSummary, setJobSummary] = useState<string | null>(null);
   
   const { data: roles, isLoading, error } = useListJobRoles();
   const createSession = useCreateInterviewSession();
 
   const handleStartSession = (roleId: string, roleName: string) => {
     createSession.mutate(
-      { data: { jobRole: roleId, jobRoleName: roleName } },
+      { data: { jobRole: roleId, jobRoleName: roleName, jobContext: jobSummary ?? undefined } },
       {
         onSuccess: (session) => {
           setLocation(`/interview/${session.id}`);
@@ -51,6 +54,12 @@ export default function Home() {
               Choose the position you want to practice for. I'll act as the hiring manager and ask you relevant questions. Take your time—this is a safe space to make mistakes and learn.
             </p>
           </header>
+
+          <JobInput
+            summary={jobSummary}
+            onJobExtracted={setJobSummary}
+            onClear={() => setJobSummary(null)}
+          />
 
           {isLoading && (
             <div className="space-y-8">

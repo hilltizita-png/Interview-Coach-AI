@@ -47,41 +47,42 @@ router.post("/interview/sessions", async (req, res): Promise<void> => {
     return;
   }
 
-  const role = JOB_ROLES.find((r) => r.id === parsed.data.jobRole);
-
   const title = `${parsed.data.jobRoleName} Interview`;
-
   const [convo] = await db.insert(conversations).values({ title }).returning();
-
-  const systemMessage = `You are an expert interviewer conducting a job interview for the position of ${parsed.data.jobRoleName}. 
-
-Your role:
-- Ask thoughtful, relevant interview questions one at a time
-- Listen carefully to the candidate's answers and ask follow-up questions when appropriate
-- Evaluate responses with the depth and expertise expected at top companies
-- Keep questions realistic and relevant to the ${parsed.data.jobRoleName} role
-- Be professional but encouraging — this is a practice environment
-- Mix behavioral (STAR method) and technical questions appropriate to the role
-- After 8-10 questions or when the interview feels complete, you may wrap up
-
-Start the interview now by introducing yourself briefly and asking your first question. Do not ask all questions at once.`;
-
-  await db.insert(messages).values({
-    conversationId: convo.id,
-    role: "system",
-    content: systemMessage,
-  });
 
   const [session] = await db
     .insert(interviewSessions)
     .values({
       jobRole: parsed.data.jobRole,
       jobRoleName: parsed.data.jobRoleName,
+      jobContext: parsed.data.jobContext ?? null,
       conversationId: convo.id,
     })
     .returning();
 
   res.status(201).json(session);
+});
+
+router.post("/interview/analyze-job", async (req, res): Promise<void> => {
+  const { posting } = req.body;
+  if (!posting || typeof posting !== "string") {
+    res.status(400).json({ error: "posting is required" });
+    return;
+  }
+
+  const result = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    max_completion_tokens: 512,
+    messages: [
+      {
+        role: "user",
+        content: `Extract the key requirements from this job posting into a short summary (3-5 sentences) for use in a mock interview. Focus on: required skills, experience level, and what success looks like in the role.\n\nJob posting:\n${posting}`,
+      },
+    ],
+  });
+
+  const summary = result.choices[0]?.message?.content ?? "";
+  res.json({ summary });
 });
 
 router.get("/interview/sessions/:id", async (req, res): Promise<void> => {
@@ -167,7 +168,7 @@ Ask one question at a time.
 Wait for the candidate's answer before asking the next question.
 After the candidate answers, give brief, specific feedback on their response, then ask your next question.
 Mix behavioral (STAR method) and role-specific technical questions.
-Be professional but encouraging — this is a practice environment.`;
+Be professional but encouraging — this is a practice environment.${session.jobContext ? `\n\nContext from the job posting:\n${session.jobContext}` : ""}`;
 
   const history = await db
     .select()

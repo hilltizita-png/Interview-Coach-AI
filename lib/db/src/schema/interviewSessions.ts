@@ -8,6 +8,7 @@ export const interviewSessions = pgTable("interview_sessions", {
   id: serial("id").primaryKey(),
   jobRole: text("job_role").notNull(),
   jobRoleName: text("job_role_name").notNull(),
+  jobContext: text("job_context"),
   conversationId: integer("conversation_id")
     .notNull()
     .references(() => conversations.id, { onDelete: "cascade" }),

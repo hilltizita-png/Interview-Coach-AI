@@ -185,6 +185,10 @@
   50% { transform: scale(1.02); }
 }
 
+.avatar.good {
+  transform: scale(1.05) translateY(-2px);
+}
+
 .avatar-emoji {
   display: flex;
   align-items: center;

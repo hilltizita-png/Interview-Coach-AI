@@ -15,7 +15,7 @@ export default function Avatar({ isSpeaking, feedback }: AvatarProps) {
   return (
     <div className="avatar-container">
       {feedback ? (
-        <div className={`avatar avatar-emoji ${isSpeaking ? "speaking" : ""}`}>
+        <div className={`avatar avatar-emoji ${feedback === "good" ? "good" : ""} ${isSpeaking ? "speaking" : ""}`}>
           {FEEDBACK_EMOJI[feedback]}
         </div>
       ) : (

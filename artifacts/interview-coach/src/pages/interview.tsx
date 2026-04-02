@@ -33,30 +33,26 @@ function speak(text: string) {
 function speakAsNarrator(text: string) {
   window.speechSynthesis.cancel();
 
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "en-US";
-  utterance.rate = 0.9;
-  utterance.pitch = 0.95;
-
   const voices = window.speechSynthesis.getVoices();
+  // Prefer warm, gentle voices — female or soft male
   const narratorVoice =
     voices.find(v =>
       v.name.includes("Google UK English Female") ||
-      v.name.includes("Google US English") ||
-      v.name.includes("Microsoft Mark") ||
-      v.name.includes("Samantha")
-    );
-
-  if (narratorVoice) utterance.voice = narratorVoice;
+      v.name.includes("Samantha") ||   // macOS — warm & clear
+      v.name.includes("Karen") ||      // macOS Australian — gentle
+      v.name.includes("Moira") ||      // macOS Irish — soft
+      v.name.includes("Microsoft Zira") || // Windows — friendly female
+      v.name.includes("Google US English")
+    ) ?? null;
 
   const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
   sentences.forEach((line, i) => {
     const seg = new SpeechSynthesisUtterance(line.trim());
-    seg.lang = utterance.lang;
-    seg.rate = utterance.rate;
-    seg.pitch = utterance.pitch;
-    seg.voice = narratorVoice ?? null;
-    setTimeout(() => window.speechSynthesis.speak(seg), i * 2000);
+    seg.lang = "en-US";
+    seg.rate = 0.85;   // unhurried, storyteller pacing
+    seg.pitch = 1.1;   // slightly lifted — warm, not flat
+    seg.voice = narratorVoice;
+    setTimeout(() => window.speechSynthesis.speak(seg), i * 900);
   });
 }
 

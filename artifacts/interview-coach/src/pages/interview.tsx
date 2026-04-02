@@ -7,7 +7,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Send, CheckCircle2, Bot, Volume2, VolumeX, Mic, MicOff, Timer } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
 
 declare global {
   interface Window {
@@ -91,6 +90,7 @@ interface LocalMessage {
   id: number | string;
   role: "user" | "assistant";
   content: string;
+  isSystem?: boolean;
 }
 
 const TIMER_OPTIONS = [15, 30, 60, 0] as const;
@@ -101,7 +101,6 @@ export default function Interview() {
   const sessionId = params?.sessionId ? parseInt(params.sessionId, 10) : 0;
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   const { data: session, isLoading, error } = useGetInterviewSession(sessionId, {
     query: { enabled: !!sessionId, queryKey: getGetInterviewSessionQueryKey(sessionId) }
@@ -168,7 +167,7 @@ export default function Interview() {
     if (timerDuration === 0) return;
 
     const lastMessage = localMessages[localMessages.length - 1];
-    if (lastMessage.role === "assistant") {
+    if (lastMessage.role === "assistant" && !lastMessage.isSystem) {
       setTimeLeft(timerDuration);
       setIsTimerActive(true);
     }
@@ -229,7 +228,15 @@ export default function Interview() {
       if (input.trim()) {
         handleSendMessage();
       } else {
-        toast({ title: "Time's up!", description: "Try to answer faster next time." });
+        setLocalMessages(prev => [
+          ...prev,
+          {
+            id: `timeout-${Date.now()}`,
+            role: "assistant",
+            content: "Time's up — in real interviews, quick thinking matters. Let's try the next one.",
+            isSystem: true,
+          },
+        ]);
       }
       return;
     }

@@ -180,16 +180,42 @@ export default function Interview() {
     if (totalTimeLeft === 0) {
       setIsInterviewActive(false);
 
-      setLocalMessages(prev => [
-        ...prev,
-        {
-          id: `system-end-${Date.now()}`,
-          role: "assistant",
-          content: "That concludes your interview. Great job — let's review your performance.",
-          isSystem: true,
-        }
-      ]);
+      const loadFeedback = async () => {
+        try {
+          const res = await fetch(`/api/interview/sessions/${sessionId}/feedback`);
+          const data = await res.json();
 
+          const content = `Interview complete.
+
+Strengths:
+${(data.strengths as string[]).map(s => `- ${s}`).join("\n")}
+
+Areas to improve:
+${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
+
+          setLocalMessages(prev => [
+            ...prev,
+            {
+              id: `system-end-${Date.now()}`,
+              role: "assistant" as const,
+              content,
+              isSystem: true,
+            }
+          ]);
+        } catch {
+          setLocalMessages(prev => [
+            ...prev,
+            {
+              id: `system-end-${Date.now()}`,
+              role: "assistant" as const,
+              content: "Interview complete. Great job!",
+              isSystem: true,
+            }
+          ]);
+        }
+      };
+
+      loadFeedback();
       return;
     }
 

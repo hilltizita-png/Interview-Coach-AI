@@ -408,11 +408,7 @@ export default function Interview() {
       <div className="p-4 md:p-6 bg-card/80 backdrop-blur-md border-t border-border shrink-0">
         <div className="max-w-3xl mx-auto relative flex items-end gap-3">
           {isTimerActive && timerDuration > 0 && (
-            <div className={`text-sm font-medium tabular-nums shrink-0 ${
-              timeLeft > timerDuration * 0.5 ? "text-green-500" :
-              timeLeft > timerDuration * 0.25 ? "text-amber-500" :
-              "text-red-500"
-            } ${timeLeft <= 5 ? "animate-pulse" : ""}`}>
+            <div className={`timer ${timeLeft <= 5 ? "warning" : ""}`}>
               ⏳ {timeLeft}s
             </div>
           )}

@@ -293,7 +293,9 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
       const isPositive = positive.some(word => assistantContent.toLowerCase().includes(word));
       const isNegative = negative.some(word => assistantContent.toLowerCase().includes(word));
       setTimeout(() => {
-        setAvatarFeedback(isPositive ? "good" : isNegative ? "needs improvement" : undefined);
+        if (isPositive) setAvatarFeedback("good");
+        else if (isNegative) setAvatarFeedback("needs improvement");
+        else setAvatarFeedback("thinking");
       }, 500);
       queryClient.invalidateQueries({ queryKey: getGetInterviewSessionQueryKey(sessionId) });
 

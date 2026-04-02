@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRoute, useLocation, Link } from "wouter";
 import { useGetInterviewSession, getGetInterviewSessionQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Send, CheckCircle2, Bot, User } from "lucide-react";
+import { ArrowLeft, Send, CheckCircle2, Bot, Volume2, VolumeX } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -27,6 +27,22 @@ export default function Interview() {
   const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [speechEnabled, setSpeechEnabled] = useState(true);
+
+  const speak = useCallback((text: string) => {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "en-US";
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    window.speechSynthesis.speak(utterance);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis.cancel();
+    };
+  }, []);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -51,6 +67,7 @@ export default function Interview() {
 
     const userMessageContent = input.trim();
     setInput("");
+    window.speechSynthesis.cancel();
 
     // Optimistically add user message
     const tempId = Date.now().toString();
@@ -99,6 +116,10 @@ export default function Interview() {
       setLocalMessages(prev => [...prev, { id: `assistant-${tempId}`, role: "assistant", content: assistantContent }]);
       setIsStreaming(false);
       setStreamingContent("");
+
+      if (speechEnabled && assistantContent) {
+        speak(assistantContent);
+      }
       
       // Invalidate the session query to grab the real DB IDs
       queryClient.invalidateQueries({ queryKey: getGetInterviewSessionQueryKey(sessionId) });
@@ -159,15 +180,30 @@ export default function Interview() {
           </div>
         </div>
         
-        <Button 
-          variant="secondary" 
-          onClick={() => setLocation(`/feedback/${sessionId}`)}
-          data-testid="button-get-feedback"
-          className="gap-2"
-        >
-          <CheckCircle2 className="w-4 h-4 text-primary" />
-          Get Feedback
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              if (speechEnabled) window.speechSynthesis.cancel();
+              setSpeechEnabled(prev => !prev);
+            }}
+            data-testid="button-toggle-speech"
+            title={speechEnabled ? "Mute interviewer" : "Unmute interviewer"}
+            className="rounded-full"
+          >
+            {speechEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5 text-muted-foreground" />}
+          </Button>
+          <Button 
+            variant="secondary" 
+            onClick={() => setLocation(`/feedback/${sessionId}`)}
+            data-testid="button-get-feedback"
+            className="gap-2"
+          >
+            <CheckCircle2 className="w-4 h-4 text-primary" />
+            Get Feedback
+          </Button>
+        </div>
       </header>
 
       {/* Chat Area */}

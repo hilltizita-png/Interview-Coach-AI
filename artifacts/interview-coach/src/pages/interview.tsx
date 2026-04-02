@@ -127,6 +127,7 @@ export default function Interview() {
   const [isNarration, setIsNarration] = useState(true);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [avatarFeedback, setAvatarFeedback] = useState<"good" | "needs improvement" | undefined>();
 
   const [timerDuration, setTimerDuration] = useState<TimerDuration>(15);
   const [timeLeft, setTimeLeft] = useState(15);
@@ -285,6 +286,11 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
       setLocalMessages(prev => [...prev, { id: `assistant-${tempId}`, role: "assistant", content: assistantContent }]);
       setIsStreaming(false);
       setStreamingContent("");
+
+      const lower = assistantContent.toLowerCase();
+      const isGood = ["great answer", "excellent", "well said", "strong answer", "good answer", "well done", "impressive", "nicely", "perfect", "solid"].some(k => lower.includes(k));
+      const needsWork = ["could improve", "needs improvement", "consider", "try to", "work on", "be more specific", "lacks", "missing", "not quite"].some(k => lower.includes(k));
+      setAvatarFeedback(isGood ? "good" : needsWork ? "needs improvement" : undefined);
       queryClient.invalidateQueries({ queryKey: getGetInterviewSessionQueryKey(sessionId) });
 
     } catch (err) {
@@ -474,7 +480,7 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
 
       {/* Interview Screen */}
       <div className="interview-screen">
-        <Avatar isSpeaking={isSpeaking} />
+        <Avatar isSpeaking={isSpeaking} feedback={avatarFeedback} />
 
         <div className="chat-area">
           <div className="max-w-3xl mx-auto space-y-8 pb-4">

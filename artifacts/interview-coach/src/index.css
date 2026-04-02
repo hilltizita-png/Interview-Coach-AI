@@ -177,6 +177,12 @@
   object-fit: cover;
   border: 3px solid hsl(var(--border));
   transition: border-color 0.3s, box-shadow 0.3s;
+  animation: breathe 4s infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
 }
 
 .avatar.speaking {

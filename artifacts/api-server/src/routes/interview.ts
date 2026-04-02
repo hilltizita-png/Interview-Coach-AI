@@ -75,9 +75,11 @@ router.post("/interview/analyze-job", async (req, res): Promise<void> => {
     max_completion_tokens: 512,
     messages: [
       {
-        role: "user",
-        content: `Extract the key requirements from this job posting into a short summary (3-5 sentences) for use in a mock interview. Focus on: required skills, experience level, and what success looks like in the role.\n\nJob posting:\n${posting}`,
+        role: "system",
+        content:
+          "You are a recruitment analyst. Extract the main responsibilities, required skills, and experience from the following job posting. Return them as a short summary in bullet form.",
       },
+      { role: "user", content: posting },
     ],
   });
 

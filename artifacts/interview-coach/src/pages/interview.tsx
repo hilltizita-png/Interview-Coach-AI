@@ -4,7 +4,7 @@ import { useRoute, useLocation, Link } from "wouter";
 import { useGetInterviewSession, getGetInterviewSessionQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Send, CheckCircle2, Bot, Volume2, VolumeX, Mic, MicOff } from "lucide-react";
+import { ArrowLeft, Send, CheckCircle2, Bot, Volume2, VolumeX, Mic, MicOff, Timer } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -92,6 +92,43 @@ interface LocalMessage {
   content: string;
 }
 
+const TIMER_OPTIONS = [15, 30, 60, 0] as const;
+type TimerDuration = typeof TIMER_OPTIONS[number];
+
+function TimerRing({ timeLeft, duration }: { timeLeft: number; duration: number }) {
+  const r = 18;
+  const circ = 2 * Math.PI * r;
+  const progress = duration > 0 ? timeLeft / duration : 1;
+  const dash = circ * progress;
+  const color =
+    progress > 0.5 ? "#22c55e" :
+    progress > 0.25 ? "#f59e0b" :
+    "#ef4444";
+
+  return (
+    <div className="relative w-11 h-11 shrink-0 flex items-center justify-center">
+      <svg width="44" height="44" className="-rotate-90">
+        <circle cx="22" cy="22" r={r} fill="none" stroke="currentColor" strokeWidth="3" className="text-muted/30" />
+        <circle
+          cx="22" cy="22" r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth="3"
+          strokeDasharray={`${dash} ${circ}`}
+          strokeLinecap="round"
+          style={{ transition: "stroke-dasharray 0.9s linear, stroke 0.5s" }}
+        />
+      </svg>
+      <span
+        className="absolute text-xs font-semibold tabular-nums"
+        style={{ color }}
+      >
+        {timeLeft}
+      </span>
+    </div>
+  );
+}
+
 export default function Interview() {
   const [, params] = useRoute("/interview/:sessionId");
   const sessionId = params?.sessionId ? parseInt(params.sessionId, 10) : 0;
@@ -109,6 +146,10 @@ export default function Interview() {
   const [speechEnabled, setSpeechEnabled] = useState(true);
   const [isNarration, setIsNarration] = useState(true);
   const [isListening, setIsListening] = useState(false);
+
+  const [timerDuration, setTimerDuration] = useState<TimerDuration>(15);
+  const [timeLeft, setTimeLeft] = useState(15);
+  const [isTimerActive, setIsTimerActive] = useState(false);
 
   useEffect(() => {
     window.speechSynthesis.onvoiceschanged = () => {
@@ -153,14 +194,53 @@ export default function Interview() {
     }
   }, [localMessages, speechEnabled, isNarration]);
 
-  const handleSendMessage = async () => {
+  // Start timer when assistant sends a question and we're not streaming
+  useEffect(() => {
+    if (timerDuration === 0) return;
+    const lastMsg = localMessages[localMessages.length - 1];
+    if (lastMsg?.role === "assistant" && !isStreaming) {
+      setTimeLeft(timerDuration);
+      setIsTimerActive(true);
+    }
+  }, [localMessages, timerDuration]);
+
+  // Pause timer while streaming
+  useEffect(() => {
+    if (isStreaming) setIsTimerActive(false);
+  }, [isStreaming]);
+
+  // Ref to always have latest handleSendMessage without re-creating the interval
+  const handleSendRef = useRef<() => void>(() => {});
+
+  // Countdown tick
+  useEffect(() => {
+    if (!isTimerActive || timerDuration === 0) return;
+
+    const interval = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setIsTimerActive(false);
+          handleSendRef.current();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isTimerActive, timerDuration]);
+
+  const handleSendMessage = useCallback(async () => {
     if (!input.trim() || isStreaming) return;
+
+    setIsTimerActive(false);
+    setTimeLeft(timerDuration);
 
     const userMessageContent = input.trim();
     setInput("");
     window.speechSynthesis.cancel();
 
-    // Optimistically add user message
     const tempId = Date.now().toString();
     setLocalMessages(prev => [...prev, { id: `user-${tempId}`, role: "user", content: userMessageContent }]);
     
@@ -180,12 +260,9 @@ export default function Interview() {
         (text) => setStreamingContent(text),
       );
 
-      // Once done, add the final assistant message and clear streaming state
       setLocalMessages(prev => [...prev, { id: `assistant-${tempId}`, role: "assistant", content: assistantContent }]);
       setIsStreaming(false);
       setStreamingContent("");
-
-      // Invalidate the session query to grab the real DB IDs
       queryClient.invalidateQueries({ queryKey: getGetInterviewSessionQueryKey(sessionId) });
 
     } catch (err) {
@@ -193,13 +270,24 @@ export default function Interview() {
       setIsStreaming(false);
       setStreamingContent("");
     }
-  };
+  }, [input, isStreaming, localMessages, sessionId, session?.jobContext, timerDuration, queryClient]);
+
+  // Keep ref in sync so the interval callback can call the latest version
+  useEffect(() => {
+    handleSendRef.current = handleSendMessage;
+  }, [handleSendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  const handleTimerDurationChange = (d: TimerDuration) => {
+    setTimerDuration(d);
+    setIsTimerActive(false);
+    setTimeLeft(d);
   };
 
   if (isLoading) {
@@ -245,6 +333,21 @@ export default function Interview() {
         </div>
         
         <div className="flex items-center gap-3">
+          {/* Timer duration selector */}
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Timer className="w-3.5 h-3.5" />
+            {TIMER_OPTIONS.map(d => (
+              <button
+                key={d}
+                onClick={() => handleTimerDurationChange(d)}
+                className={`px-2 py-0.5 rounded-md font-medium transition-colors ${timerDuration === d ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                data-testid={`timer-option-${d}`}
+              >
+                {d === 0 ? "Off" : `${d}s`}
+              </button>
+            ))}
+          </div>
+
           {speechEnabled && (
             <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
               <input
@@ -254,7 +357,7 @@ export default function Interview() {
                 className="accent-primary"
                 data-testid="checkbox-narration"
               />
-              Narration Mode
+              Narration
             </label>
           )}
           <Button
@@ -286,7 +389,6 @@ export default function Interview() {
       <div className="flex-1 overflow-y-auto px-4 py-8 md:p-8 scroll-smooth">
         <div className="max-w-3xl mx-auto space-y-8 pb-4">
           
-          {/* Welcome Message */}
           {localMessages.length === 0 && !isStreaming && (
             <div className="text-center text-muted-foreground my-12 animate-in fade-in zoom-in duration-500">
               <Bot className="w-12 h-12 mx-auto mb-4 text-primary/40" />
@@ -306,7 +408,6 @@ export default function Interview() {
                   <Bot className="w-5 h-5" />
                 </div>
               )}
-              
               <div 
                 className={`px-5 py-4 rounded-2xl max-w-[85%] text-base leading-relaxed shadow-sm ${
                   msg.role === "user" 
@@ -319,7 +420,6 @@ export default function Interview() {
             </div>
           ))}
 
-          {/* Streaming Message */}
           {isStreaming && (
             <div className="flex gap-4 justify-start animate-in fade-in">
               <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-sm text-primary-foreground">
@@ -346,6 +446,9 @@ export default function Interview() {
       {/* Input Area */}
       <div className="p-4 md:p-6 bg-card/80 backdrop-blur-md border-t border-border shrink-0">
         <div className="max-w-3xl mx-auto relative flex items-end gap-3">
+          {isTimerActive && timerDuration > 0 && (
+            <TimerRing timeLeft={timeLeft} duration={timerDuration} />
+          )}
           <Textarea 
             value={input}
             onChange={(e) => setInput(e.target.value)}

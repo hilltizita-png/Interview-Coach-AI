@@ -177,8 +177,8 @@ export default function Interview() {
     const lastMessage = localMessages[localMessages.length - 1];
     if (lastMessage.role === "assistant" && speechEnabled) {
       isNarration
-        ? speakAttenborough(lastMessage.content, () => setIsSpeaking(true), () => setIsSpeaking(false))
-        : speak(lastMessage.content, () => setIsSpeaking(true), () => setIsSpeaking(false));
+        ? speakAttenborough(lastMessage.content, () => { setIsSpeaking(true); setAvatarFeedback("thinking"); }, () => setIsSpeaking(false))
+        : speak(lastMessage.content, () => { setIsSpeaking(true); setAvatarFeedback("thinking"); }, () => setIsSpeaking(false));
     }
   }, [localMessages, speechEnabled, isNarration]);
 

@@ -50,12 +50,24 @@ router.post("/interview/sessions", async (req, res): Promise<void> => {
   const title = `${parsed.data.jobRoleName} Interview`;
   const [convo] = await db.insert(conversations).values({ title }).returning();
 
+  const jobContext = parsed.data.jobContext ?? null;
+
+  const greeting = jobContext
+    ? `Let's begin your practice interview for the ${parsed.data.jobRoleName} role.\n\nBased on the job posting, here's what I'll be focusing on:\n${jobContext}\n\nAre you ready to get started?`
+    : `Let's begin your practice interview for the ${parsed.data.jobRoleName} role.\n\nI'll ask you a mix of behavioral and role-specific questions, one at a time. Take your time with each answer.\n\nAre you ready to get started?`;
+
+  await db.insert(messages).values({
+    conversationId: convo.id,
+    role: "assistant",
+    content: greeting,
+  });
+
   const [session] = await db
     .insert(interviewSessions)
     .values({
       jobRole: parsed.data.jobRole,
       jobRoleName: parsed.data.jobRoleName,
-      jobContext: parsed.data.jobContext ?? null,
+      jobContext,
       conversationId: convo.id,
     })
     .returning();

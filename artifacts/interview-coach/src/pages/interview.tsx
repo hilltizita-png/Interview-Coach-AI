@@ -62,6 +62,15 @@ export default function Interview() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [localMessages, streamingContent, isStreaming]);
 
+  // Speak last assistant message when it arrives
+  useEffect(() => {
+    if (localMessages.length === 0) return;
+    const lastMessage = localMessages[localMessages.length - 1];
+    if (lastMessage.role === "assistant" && speechEnabled) {
+      speak(lastMessage.content);
+    }
+  }, [localMessages, speechEnabled, speak]);
+
   const handleSendMessage = async () => {
     if (!input.trim() || isStreaming) return;
 
@@ -117,10 +126,6 @@ export default function Interview() {
       setIsStreaming(false);
       setStreamingContent("");
 
-      if (speechEnabled && assistantContent) {
-        speak(assistantContent);
-      }
-      
       // Invalidate the session query to grab the real DB IDs
       queryClient.invalidateQueries({ queryKey: getGetInterviewSessionQueryKey(sessionId) });
 

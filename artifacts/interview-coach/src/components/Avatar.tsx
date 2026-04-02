@@ -1,4 +1,4 @@
-type Feedback = "good" | "needs improvement";
+type Feedback = "good" | "needs improvement" | "thinking";
 
 interface AvatarProps {
   isSpeaking: boolean;
@@ -8,6 +8,7 @@ interface AvatarProps {
 const AVATAR_SRCS: Record<Feedback | "default", string> = {
   good: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f603/emoji.svg",           // 😃 replace later
   "needs improvement": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f610/emoji.svg", // 😐 replace later
+  thinking: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f914/emoji.svg",       // 🤔 replace later
   default: "https://i.imgur.com/6VBx3io.png",
 };
 

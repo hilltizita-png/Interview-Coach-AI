@@ -127,7 +127,7 @@ export default function Interview() {
   const [isNarration, setIsNarration] = useState(true);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [avatarFeedback, setAvatarFeedback] = useState<"good" | "needs improvement" | undefined>();
+  const [avatarFeedback, setAvatarFeedback] = useState<"good" | "needs improvement" | "thinking" | undefined>();
 
   const [timerDuration, setTimerDuration] = useState<TimerDuration>(15);
   const [timeLeft, setTimeLeft] = useState(15);
@@ -268,6 +268,7 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
     
     setIsStreaming(true);
     setStreamingContent("");
+    setAvatarFeedback("thinking");
 
     try {
       const messagesForApi = [

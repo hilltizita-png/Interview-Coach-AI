@@ -171,14 +171,26 @@ export default function Interview() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [localMessages, streamingContent, isStreaming]);
 
+  const detectFeedbackAndSetFace = useCallback(() => {
+    const lastMsg = [...localMessages].reverse().find(m => m.role === "assistant");
+    if (!lastMsg) return;
+    const positive = ["great", "strong", "clear", "excellent"];
+    const negative = ["improve", "unclear", "weak", "consider"];
+    const isPositive = positive.some(word => lastMsg.content.toLowerCase().includes(word));
+    const isNegative = negative.some(word => lastMsg.content.toLowerCase().includes(word));
+    if (isPositive) setAvatarFeedback("good");
+    else if (isNegative) setAvatarFeedback("needs improvement");
+    else setAvatarFeedback("thinking");
+  }, [localMessages]);
+
   // Speak last assistant message when it arrives
   useEffect(() => {
     if (localMessages.length === 0) return;
     const lastMessage = localMessages[localMessages.length - 1];
     if (lastMessage.role === "assistant" && speechEnabled) {
       isNarration
-        ? speakAttenborough(lastMessage.content, () => { setIsSpeaking(true); setAvatarFeedback("thinking"); }, () => setIsSpeaking(false))
-        : speak(lastMessage.content, () => { setIsSpeaking(true); setAvatarFeedback("thinking"); }, () => setIsSpeaking(false));
+        ? speakAttenborough(lastMessage.content, () => { setIsSpeaking(true); setAvatarFeedback("thinking"); }, () => { setIsSpeaking(false); detectFeedbackAndSetFace(); })
+        : speak(lastMessage.content, () => { setIsSpeaking(true); setAvatarFeedback("thinking"); }, () => { setIsSpeaking(false); detectFeedbackAndSetFace(); });
     }
   }, [localMessages, speechEnabled, isNarration]);
 

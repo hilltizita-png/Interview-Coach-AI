@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Send, CheckCircle2, Bot, Volume2, VolumeX, Mic, MicOff, Timer } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
+import Avatar from "@/components/Avatar";
 
 declare global {
   interface Window {
@@ -15,7 +16,7 @@ declare global {
   }
 }
 
-function speak(text: string) {
+function speak(text: string, onStart?: () => void, onEnd?: () => void) {
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "en-US";
@@ -28,10 +29,12 @@ function speak(text: string) {
     v.name.includes("Microsoft")
   );
   if (preferred) utterance.voice = preferred;
+  if (onStart) utterance.onstart = onStart;
+  if (onEnd) utterance.onend = onEnd;
   window.speechSynthesis.speak(utterance);
 }
 
-function speakAttenborough(text: string) {
+function speakAttenborough(text: string, onStart?: () => void, onEnd?: () => void) {
   window.speechSynthesis.cancel();
 
   const base = new SpeechSynthesisUtterance();
@@ -54,6 +57,8 @@ function speakAttenborough(text: string) {
   segments.forEach((line, i) => {
     const u = new SpeechSynthesisUtterance(line.trim());
     Object.assign(u, base);
+    if (i === 0 && onStart) u.onstart = onStart;
+    if (i === segments.length - 1 && onEnd) u.onend = onEnd;
     setTimeout(() => window.speechSynthesis.speak(u), i * 1100);
   });
 }
@@ -121,6 +126,7 @@ export default function Interview() {
   const [speechEnabled, setSpeechEnabled] = useState(true);
   const [isNarration, setIsNarration] = useState(true);
   const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const [timerDuration, setTimerDuration] = useState<TimerDuration>(15);
   const [timeLeft, setTimeLeft] = useState(15);
@@ -169,7 +175,9 @@ export default function Interview() {
     if (localMessages.length === 0) return;
     const lastMessage = localMessages[localMessages.length - 1];
     if (lastMessage.role === "assistant" && speechEnabled) {
-      isNarration ? speakAttenborough(lastMessage.content) : speak(lastMessage.content);
+      isNarration
+        ? speakAttenborough(lastMessage.content, () => setIsSpeaking(true), () => setIsSpeaking(false))
+        : speak(lastMessage.content, () => setIsSpeaking(true), () => setIsSpeaking(false));
     }
   }, [localMessages, speechEnabled, isNarration]);
 
@@ -468,6 +476,8 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
       <div className="flex-1 overflow-y-auto px-4 py-8 md:p-8 scroll-smooth">
         <div className="max-w-3xl mx-auto space-y-8 pb-4">
           
+          <Avatar isSpeaking={isSpeaking} />
+
           {localMessages.length === 0 && !isStreaming && (
             <div className="text-center text-muted-foreground my-12 animate-in fade-in zoom-in duration-500">
               <Bot className="w-12 h-12 mx-auto mb-4 text-primary/40" />

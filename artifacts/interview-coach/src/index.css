@@ -148,6 +148,33 @@
   font-weight: bold;
 }
 
+/* Avatar */
+.avatar-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid hsl(var(--border));
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.avatar.speaking {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 6px hsl(var(--primary) / 0.15);
+  animation: avatar-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes avatar-pulse {
+  0%, 100% { box-shadow: 0 0 0 6px hsl(var(--primary) / 0.15); }
+  50%       { box-shadow: 0 0 0 12px hsl(var(--primary) / 0.05); }
+}
+
 /* Interview Session Timer */
 .interview-timer {
   font-size: 18px;

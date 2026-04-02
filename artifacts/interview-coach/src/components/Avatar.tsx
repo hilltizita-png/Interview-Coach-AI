@@ -5,23 +5,26 @@ interface AvatarProps {
   feedback?: Feedback;
 }
 
-const AVATAR_SRCS: Record<Feedback | "default", string> = {
-  good: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f603/emoji.svg",           // 😃 replace later
-  "needs improvement": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f610/emoji.svg", // 😐 replace later
-  thinking: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f914/emoji.svg",       // 🤔 replace later
-  default: "https://i.imgur.com/6VBx3io.png",
+const FEEDBACK_EMOJI: Record<Feedback, string> = {
+  thinking: "🤔",
+  good: "😃",
+  "needs improvement": "😐",
 };
 
 export default function Avatar({ isSpeaking, feedback }: AvatarProps) {
-  const src = feedback ? AVATAR_SRCS[feedback] : AVATAR_SRCS.default;
-
   return (
     <div className="avatar-container">
-      <img
-        src={src}
-        alt="AI Interviewer"
-        className={`avatar ${isSpeaking ? "speaking" : ""}`}
-      />
+      {feedback ? (
+        <div className={`avatar avatar-emoji ${isSpeaking ? "speaking" : ""}`}>
+          {FEEDBACK_EMOJI[feedback]}
+        </div>
+      ) : (
+        <img
+          src="https://i.imgur.com/6VBx3io.png"
+          alt="AI Interviewer"
+          className={`avatar ${isSpeaking ? "speaking" : ""}`}
+        />
+      )}
     </div>
   );
 }

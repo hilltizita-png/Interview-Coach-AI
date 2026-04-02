@@ -88,6 +88,12 @@ export default function Interview() {
   const [isListening, setIsListening] = useState(false);
 
   useEffect(() => {
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
+  }, []);
+
+  useEffect(() => {
     return () => {
       window.speechSynthesis.cancel();
     };

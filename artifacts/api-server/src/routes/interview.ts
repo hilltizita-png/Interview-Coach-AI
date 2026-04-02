@@ -177,12 +177,16 @@ router.post("/interview/sessions/:id/chat", async (req, res): Promise<void> => {
     content: parsed.data.content,
   });
 
-  const systemPrompt = `You are an expert interviewer for a ${session.jobRoleName} position.
-Ask one question at a time.
-Wait for the candidate's answer before asking the next question.
-After the candidate answers, give brief, specific feedback on their response, then ask your next question.
-Mix behavioral (STAR method) and role-specific technical questions.
-Be professional but encouraging — this is a practice environment.${session.jobContext ? `\n\nContext from the job posting:\n${session.jobContext}` : ""}`;
+  const systemPrompt = session.jobContext
+    ? `You are an AI interview coach. Use the following job description to tailor your questions:
+
+${session.jobContext}
+
+Ask one question at a time, relevant to the responsibilities and skills above.
+After the user's answer, give short constructive feedback, then proceed.`
+    : `You are an AI interview coach conducting a practice interview for a ${session.jobRoleName} position.
+Ask one question at a time, relevant to the role.
+After the user's answer, give short constructive feedback, then proceed.`;
 
   const history = await db
     .select()

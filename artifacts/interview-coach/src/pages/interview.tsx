@@ -194,15 +194,17 @@ export default function Interview() {
     }
   }, [localMessages, speechEnabled, isNarration]);
 
-  // Start timer when assistant sends a question and we're not streaming
+  // Start timer when the last message is from the assistant
   useEffect(() => {
+    if (localMessages.length === 0) return;
     if (timerDuration === 0) return;
-    const lastMsg = localMessages[localMessages.length - 1];
-    if (lastMsg?.role === "assistant" && !isStreaming) {
+
+    const lastMessage = localMessages[localMessages.length - 1];
+    if (lastMessage.role === "assistant") {
       setTimeLeft(timerDuration);
       setIsTimerActive(true);
     }
-  }, [localMessages, timerDuration]);
+  }, [localMessages]);
 
   // Pause timer while streaming
   useEffect(() => {

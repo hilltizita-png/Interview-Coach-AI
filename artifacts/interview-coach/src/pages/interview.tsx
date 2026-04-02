@@ -129,6 +129,7 @@ export default function Interview() {
   const [interviewDuration, setInterviewDuration] = useState(30); // minutes
   const [totalTimeLeft, setTotalTimeLeft] = useState(30 * 60); // seconds
   const [isInterviewActive, setIsInterviewActive] = useState(false);
+  const [interviewStarted, setInterviewStarted] = useState(false);
 
   useEffect(() => {
     window.speechSynthesis.onvoiceschanged = () => {
@@ -173,12 +174,12 @@ export default function Interview() {
     }
   }, [localMessages, speechEnabled, isNarration]);
 
-  // Start session timer on first message
+  // Start session timer once the user has chosen a duration and messages are loaded
   useEffect(() => {
-    if (localMessages.length > 0 && !isInterviewActive) {
+    if (interviewStarted && localMessages.length > 0 && !isInterviewActive) {
       setIsInterviewActive(true);
     }
-  }, [localMessages]);
+  }, [localMessages, interviewStarted]);
 
   // Session timer countdown
   useEffect(() => {
@@ -297,6 +298,12 @@ export default function Interview() {
     setIsInterviewActive(false);
   };
 
+  const startInterview = (mins: number) => {
+    setInterviewDuration(mins);
+    setTotalTimeLeft(mins * 60);
+    setInterviewStarted(true);
+  };
+
   if (isLoading) {
     return (
       <div className="h-[100dvh] flex flex-col bg-background">
@@ -323,6 +330,20 @@ export default function Interview() {
 
   return (
     <div className="h-[100dvh] flex flex-col bg-background relative">
+      {/* Duration selection overlay */}
+      {!interviewStarted && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="duration-select">
+            <h3>Select Interview Length</h3>
+            <button onClick={() => startInterview(30)}>
+              30 Minutes
+            </button>
+            <button onClick={() => startInterview(60)}>
+              1 Hour
+            </button>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="border-b border-border bg-card shrink-0 flex items-center justify-between px-4 md:px-6 py-4 sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-4">

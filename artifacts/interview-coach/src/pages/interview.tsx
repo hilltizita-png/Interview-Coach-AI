@@ -129,7 +129,6 @@ export default function Interview() {
   const [interviewDuration, setInterviewDuration] = useState(30); // minutes
   const [totalTimeLeft, setTotalTimeLeft] = useState(30 * 60); // seconds
   const [isInterviewActive, setIsInterviewActive] = useState(false);
-  const [interviewStarted, setInterviewStarted] = useState(false);
 
   useEffect(() => {
     window.speechSynthesis.onvoiceschanged = () => {
@@ -173,13 +172,6 @@ export default function Interview() {
       isNarration ? speakAttenborough(lastMessage.content) : speak(lastMessage.content);
     }
   }, [localMessages, speechEnabled, isNarration]);
-
-  // Start session timer once the user has chosen a duration and messages are loaded
-  useEffect(() => {
-    if (interviewStarted && localMessages.length > 0 && !isInterviewActive) {
-      setIsInterviewActive(true);
-    }
-  }, [localMessages, interviewStarted]);
 
   // Session timer countdown
   useEffect(() => {
@@ -295,14 +287,13 @@ export default function Interview() {
   const handleInterviewDurationChange = (mins: number) => {
     setInterviewDuration(mins);
     setTotalTimeLeft(mins * 60);
-    setIsInterviewActive(false);
   };
 
-  const startInterview = (mins: number) => {
-    setInterviewDuration(mins);
-    setTotalTimeLeft(mins * 60);
-    setInterviewStarted(true);
-  };
+  function startInterview(minutes: number) {
+    setInterviewDuration(minutes);
+    setTotalTimeLeft(minutes * 60);
+    setIsInterviewActive(true);
+  }
 
   if (isLoading) {
     return (
@@ -331,7 +322,7 @@ export default function Interview() {
   return (
     <div className="h-[100dvh] flex flex-col bg-background relative">
       {/* Duration selection overlay */}
-      {!interviewStarted && (
+      {!isInterviewActive && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
           <div className="duration-select">
             <h3>Select Interview Length</h3>

@@ -290,7 +290,9 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
       const lower = assistantContent.toLowerCase();
       const isGood = ["great answer", "excellent", "well said", "strong answer", "good answer", "well done", "impressive", "nicely", "perfect", "solid"].some(k => lower.includes(k));
       const needsWork = ["could improve", "needs improvement", "consider", "try to", "work on", "be more specific", "lacks", "missing", "not quite"].some(k => lower.includes(k));
-      setAvatarFeedback(isGood ? "good" : needsWork ? "needs improvement" : undefined);
+      setTimeout(() => {
+        setAvatarFeedback(isGood ? "good" : needsWork ? "needs improvement" : undefined);
+      }, 500);
       queryClient.invalidateQueries({ queryKey: getGetInterviewSessionQueryKey(sessionId) });
 
     } catch (err) {

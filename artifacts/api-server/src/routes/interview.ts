@@ -215,7 +215,7 @@ router.post("/interview/sessions/:id/chat", async (req, res): Promise<void> => {
   }
 
   const timeNote = timeLeft !== undefined
-    ? `\nThe candidate has ${Math.floor(timeLeft / 60)} minute(s) and ${timeLeft % 60} second(s) remaining in their session. Pace your questions accordingly — if time is short, wrap up gracefully.`
+    ? `\nThe interview has limited time remaining: ${timeLeft} seconds.\nIf time is short, ask more direct and concise questions.`
     : "";
 
   const systemPrompt = context

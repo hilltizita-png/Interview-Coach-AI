@@ -472,11 +472,12 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
         </div>
       </header>
 
-      {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-8 md:p-8 scroll-smooth">
-        <div className="max-w-3xl mx-auto space-y-8 pb-4">
-          
-          <Avatar isSpeaking={isSpeaking} />
+      {/* Interview Screen */}
+      <div className="interview-screen">
+        <Avatar isSpeaking={isSpeaking} />
+
+        <div className="chat-area">
+          <div className="max-w-3xl mx-auto space-y-8 pb-4">
 
           {localMessages.length === 0 && !isStreaming && (
             <div className="text-center text-muted-foreground my-12 animate-in fade-in zoom-in duration-500">
@@ -529,6 +530,7 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
           )}
           
           <div ref={messagesEndRef} />
+          </div>
         </div>
       </div>
 

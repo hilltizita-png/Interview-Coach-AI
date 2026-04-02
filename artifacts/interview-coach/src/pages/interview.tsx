@@ -96,40 +96,6 @@ interface LocalMessage {
 const TIMER_OPTIONS = [15, 30, 60, 0] as const;
 type TimerDuration = typeof TIMER_OPTIONS[number];
 
-function TimerRing({ timeLeft, duration }: { timeLeft: number; duration: number }) {
-  const r = 18;
-  const circ = 2 * Math.PI * r;
-  const progress = duration > 0 ? timeLeft / duration : 1;
-  const dash = circ * progress;
-  const color =
-    progress > 0.5 ? "#22c55e" :
-    progress > 0.25 ? "#f59e0b" :
-    "#ef4444";
-
-  return (
-    <div className="relative w-11 h-11 shrink-0 flex items-center justify-center">
-      <svg width="44" height="44" className="-rotate-90">
-        <circle cx="22" cy="22" r={r} fill="none" stroke="currentColor" strokeWidth="3" className="text-muted/30" />
-        <circle
-          cx="22" cy="22" r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth="3"
-          strokeDasharray={`${dash} ${circ}`}
-          strokeLinecap="round"
-          style={{ transition: "stroke-dasharray 0.9s linear, stroke 0.5s" }}
-        />
-      </svg>
-      <span
-        className="absolute text-xs font-semibold tabular-nums"
-        style={{ color }}
-      >
-        {timeLeft}
-      </span>
-    </div>
-  );
-}
-
 export default function Interview() {
   const [, params] = useRoute("/interview/:sessionId");
   const sessionId = params?.sessionId ? parseInt(params.sessionId, 10) : 0;
@@ -442,7 +408,13 @@ export default function Interview() {
       <div className="p-4 md:p-6 bg-card/80 backdrop-blur-md border-t border-border shrink-0">
         <div className="max-w-3xl mx-auto relative flex items-end gap-3">
           {isTimerActive && timerDuration > 0 && (
-            <TimerRing timeLeft={timeLeft} duration={timerDuration} />
+            <div className={`text-sm font-medium tabular-nums shrink-0 ${
+              timeLeft > timerDuration * 0.5 ? "text-green-500" :
+              timeLeft > timerDuration * 0.25 ? "text-amber-500" :
+              "text-red-500"
+            }`}>
+              ⏳ {timeLeft}s
+            </div>
           )}
           <Textarea 
             value={input}

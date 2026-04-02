@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Send, CheckCircle2, Bot, Volume2, VolumeX, Mic, MicOff, Timer } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 declare global {
   interface Window {
@@ -134,6 +135,7 @@ export default function Interview() {
   const sessionId = params?.sessionId ? parseInt(params.sessionId, 10) : 0;
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: session, isLoading, error } = useGetInterviewSession(sessionId, {
     query: { enabled: !!sessionId, queryKey: getGetInterviewSessionQueryKey(sessionId) }
@@ -211,28 +213,6 @@ export default function Interview() {
     if (isStreaming) setIsTimerActive(false);
   }, [isStreaming]);
 
-  // Ref to always have latest handleSendMessage without re-creating the interval
-  const handleSendRef = useRef<() => void>(() => {});
-
-  // Countdown tick
-  useEffect(() => {
-    if (!isTimerActive || timerDuration === 0) return;
-
-    const interval = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          setIsTimerActive(false);
-          handleSendRef.current();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isTimerActive, timerDuration]);
-
   const handleSendMessage = useCallback(async () => {
     if (!input.trim() || isStreaming) return;
 
@@ -274,10 +254,23 @@ export default function Interview() {
     }
   }, [input, isStreaming, localMessages, sessionId, session?.jobContext, timerDuration, queryClient]);
 
-  // Keep ref in sync so the interval callback can call the latest version
+  // Countdown tick — setTimeout pattern: each render captures a fresh closure, no ref needed
   useEffect(() => {
-    handleSendRef.current = handleSendMessage;
-  }, [handleSendMessage]);
+    if (!isTimerActive) return;
+
+    if (timeLeft === 0) {
+      setIsTimerActive(false);
+      if (input.trim()) {
+        handleSendMessage();
+      } else {
+        toast({ title: "Time's up!", description: "Try to answer faster next time." });
+      }
+      return;
+    }
+
+    const timer = setTimeout(() => setTimeLeft(prev => prev - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [timeLeft, isTimerActive]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {

@@ -179,12 +179,25 @@ export default function Interview() {
 
     if (totalTimeLeft === 0) {
       setIsInterviewActive(false);
-      setLocation(`/feedback/${sessionId}`);
+
+      setLocalMessages(prev => [
+        ...prev,
+        {
+          id: `system-end-${Date.now()}`,
+          role: "assistant",
+          content: "That concludes your interview. Great job — let's review your performance.",
+          isSystem: true,
+        }
+      ]);
+
       return;
     }
 
-    const timer = setTimeout(() => setTotalTimeLeft(prev => prev - 1), 1000);
-    return () => clearTimeout(timer);
+    const interval = setTimeout(() => {
+      setTotalTimeLeft(prev => prev - 1);
+    }, 1000);
+
+    return () => clearTimeout(interval);
   }, [totalTimeLeft, isInterviewActive]);
 
   // Start timer when the last message is from the assistant

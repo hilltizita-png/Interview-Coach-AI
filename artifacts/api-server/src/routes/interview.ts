@@ -162,17 +162,23 @@ router.post("/interview/sessions/:id/chat", async (req, res): Promise<void> => {
     content: parsed.data.content,
   });
 
+  const systemPrompt = `You are an expert interviewer for a ${session.jobRoleName} position.
+Ask one question at a time.
+Wait for the candidate's answer before asking the next question.
+After the candidate answers, give brief, specific feedback on their response, then ask your next question.
+Mix behavioral (STAR method) and role-specific technical questions.
+Be professional but encouraging — this is a practice environment.`;
+
   const history = await db
     .select()
     .from(messages)
     .where(eq(messages.conversationId, session.conversationId))
     .orderBy(asc(messages.createdAt));
 
-  const systemMsg = history.find((m) => m.role === "system");
   const conversationMsgs = history.filter((m) => m.role !== "system");
 
   const chatMessages = [
-    { role: "system" as const, content: systemMsg?.content ?? "" },
+    { role: "system" as const, content: systemPrompt },
     ...conversationMsgs.map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,

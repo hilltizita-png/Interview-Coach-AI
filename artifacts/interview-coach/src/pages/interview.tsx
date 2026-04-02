@@ -14,6 +14,34 @@ declare global {
   }
 }
 
+function startListening(
+  onResult: (text: string) => void,
+  onStart?: () => void,
+  onEnd?: () => void,
+) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    alert("Speech recognition not supported in this browser.");
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.lang = "en-US";
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.onresult = (event: SpeechRecognitionEvent) => {
+    const transcript = event.results[0][0].transcript;
+    onResult(transcript);
+  };
+
+  recognition.onstart = () => onStart?.();
+  recognition.onend = () => onEnd?.();
+  recognition.onerror = () => onEnd?.();
+
+  recognition.start();
+}
+
 interface LocalMessage {
   id: number | string;
   role: "user" | "assistant";
@@ -53,27 +81,7 @@ export default function Interview() {
   }, []);
 
   const handleMicClick = useCallback(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Speech recognition not supported in this browser.");
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const transcript = event.results[0][0].transcript;
-      setInput(transcript);
-    };
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
-
-    recognition.start();
+    startListening(setInput, () => setIsListening(true), () => setIsListening(false));
   }, []);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);

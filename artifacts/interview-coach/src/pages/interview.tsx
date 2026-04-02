@@ -14,26 +14,34 @@ declare global {
   }
 }
 
-function speak(text: string) {
+function speakAsNarrator(text: string) {
   window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "en-US";
-  utterance.rate = 1.0;
-  utterance.pitch = 1.0;
+  utterance.rate = 0.9;
+  utterance.pitch = 0.95;
 
   const voices = window.speechSynthesis.getVoices();
-  const preferredVoice =
+  const narratorVoice =
     voices.find(v =>
-      v.name.includes("Natural") ||
+      v.name.includes("Google UK English Female") ||
       v.name.includes("Google US English") ||
-      v.name.includes("Samantha") ||
-      v.name.includes("Microsoft")
+      v.name.includes("Microsoft Mark") ||
+      v.name.includes("Samantha")
     );
 
-  if (preferredVoice) utterance.voice = preferredVoice;
+  if (narratorVoice) utterance.voice = narratorVoice;
 
-  window.speechSynthesis.speak(utterance);
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  sentences.forEach((line, i) => {
+    const seg = new SpeechSynthesisUtterance(line.trim());
+    seg.lang = utterance.lang;
+    seg.rate = utterance.rate;
+    seg.pitch = utterance.pitch;
+    seg.voice = narratorVoice ?? null;
+    setTimeout(() => window.speechSynthesis.speak(seg), i * 2000);
+  });
 }
 
 function startListening(
@@ -126,7 +134,7 @@ export default function Interview() {
     if (localMessages.length === 0) return;
     const lastMessage = localMessages[localMessages.length - 1];
     if (lastMessage.role === "assistant" && speechEnabled) {
-      speak(lastMessage.content);
+      speakAsNarrator(lastMessage.content);
     }
   }, [localMessages, speechEnabled]);
 

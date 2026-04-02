@@ -95,7 +95,9 @@ export interface CreateInterviewSessionBody {
 }
 
 export interface SendInterviewMessageBody {
-  content: string;
+  context?: string;
+  messages: Array<{ role: string; content: string }>;
+  timeLeft?: number;
 }
 
 export interface InterviewFeedback {

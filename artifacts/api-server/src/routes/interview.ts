@@ -202,6 +202,7 @@ router.post("/interview/sessions/:id/chat", async (req, res): Promise<void> => {
 
   const clientMessages = parsed.data.messages;
   const context = parsed.data.context;
+  const timeLeft = parsed.data.timeLeft;
 
   // Persist the last user message (final entry in the client messages array)
   const lastUserMsg = [...clientMessages].reverse().find((m) => m.role === "user");
@@ -213,16 +214,20 @@ router.post("/interview/sessions/:id/chat", async (req, res): Promise<void> => {
     });
   }
 
+  const timeNote = timeLeft !== undefined
+    ? `\nThe candidate has ${Math.floor(timeLeft / 60)} minute(s) and ${timeLeft % 60} second(s) remaining in their session. Pace your questions accordingly — if time is short, wrap up gracefully.`
+    : "";
+
   const systemPrompt = context
     ? `You are an AI interview coach. Use the following job description to tailor your questions:
 
 ${context}
 
 Ask one question at a time, relevant to the responsibilities and skills above.
-After the user's answer, give short constructive feedback, then proceed.`
+After the user's answer, give short constructive feedback, then proceed.${timeNote}`
     : `You are an AI interview coach conducting a practice interview for a ${session.jobRoleName} position.
 Ask one question at a time, relevant to the role.
-After the user's answer, give short constructive feedback, then proceed.`;
+After the user's answer, give short constructive feedback, then proceed.${timeNote}`;
 
   const chatMessages = [
     { role: "system" as const, content: systemPrompt },

@@ -245,6 +245,7 @@ export default function Interview() {
         session?.jobContext ?? undefined,
         messagesForApi,
         (text) => setStreamingContent(text),
+        totalTimeLeft,
       );
 
       setLocalMessages(prev => [...prev, { id: `assistant-${tempId}`, role: "assistant", content: assistantContent }]);

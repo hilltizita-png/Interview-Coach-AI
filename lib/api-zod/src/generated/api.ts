@@ -168,6 +168,7 @@ export const SendInterviewMessageParams = zod.object({
 export const SendInterviewMessageBody = zod.object({
   context: zod.string().optional(),
   messages: zod.array(zod.object({ role: zod.string(), content: zod.string() })),
+  timeLeft: zod.number().optional(),
 });
 
 /**

@@ -9,4 +9,5 @@
 export interface SendInterviewMessageBody {
   context?: string;
   messages: Array<{ role: string; content: string }>;
+  timeLeft?: number;
 }

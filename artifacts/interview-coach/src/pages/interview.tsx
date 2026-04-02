@@ -14,6 +14,28 @@ declare global {
   }
 }
 
+function speak(text: string) {
+  window.speechSynthesis.cancel();
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "en-US";
+  utterance.rate = 1.0;
+  utterance.pitch = 1.0;
+
+  const voices = window.speechSynthesis.getVoices();
+  const preferredVoice =
+    voices.find(v =>
+      v.name.includes("Natural") ||
+      v.name.includes("Google US English") ||
+      v.name.includes("Samantha") ||
+      v.name.includes("Microsoft")
+    );
+
+  if (preferredVoice) utterance.voice = preferredVoice;
+
+  window.speechSynthesis.speak(utterance);
+}
+
 function startListening(
   onResult: (text: string) => void,
   onStart?: () => void,
@@ -65,15 +87,6 @@ export default function Interview() {
   const [speechEnabled, setSpeechEnabled] = useState(true);
   const [isListening, setIsListening] = useState(false);
 
-  const speak = useCallback((text: string) => {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "en-US";
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    window.speechSynthesis.speak(utterance);
-  }, []);
-
   useEffect(() => {
     return () => {
       window.speechSynthesis.cancel();
@@ -109,7 +122,7 @@ export default function Interview() {
     if (lastMessage.role === "assistant" && speechEnabled) {
       speak(lastMessage.content);
     }
-  }, [localMessages, speechEnabled, speak]);
+  }, [localMessages, speechEnabled]);
 
   const handleSendMessage = async () => {
     if (!input.trim() || isStreaming) return;

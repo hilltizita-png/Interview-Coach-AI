@@ -99,6 +99,35 @@ router.post("/interview/analyze-job", async (req, res): Promise<void> => {
   res.json({ summary });
 });
 
+router.post("/interview/research-role", async (req, res): Promise<void> => {
+  const { role } = req.body;
+  if (!role || typeof role !== "string") {
+    res.status(400).json({ error: "role is required" });
+    return;
+  }
+
+  const result = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    max_completion_tokens: 512,
+    messages: [
+      {
+        role: "system",
+        content: `You are a career analyst.
+
+Given a job title, generate a realistic job profile including:
+- Key responsibilities
+- Required skills
+- Common interview topics
+
+Keep it concise and structured.`,
+      },
+      { role: "user", content: role },
+    ],
+  });
+
+  res.json({ summary: result.choices[0]?.message?.content ?? "" });
+});
+
 router.get("/interview/sessions/:id", async (req, res): Promise<void> => {
   const params = GetInterviewSessionParams.safeParse(req.params);
   if (!params.success) {

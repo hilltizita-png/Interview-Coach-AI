@@ -168,10 +168,16 @@ router.post("/interview/sessions/:id/chat", async (req, res): Promise<void> => {
     .where(eq(messages.conversationId, session.conversationId))
     .orderBy(asc(messages.createdAt));
 
-  const chatMessages = history.map((m) => ({
-    role: m.role as "user" | "assistant" | "system",
-    content: m.content,
-  }));
+  const systemMsg = history.find((m) => m.role === "system");
+  const conversationMsgs = history.filter((m) => m.role !== "system");
+
+  const chatMessages = [
+    { role: "system" as const, content: systemMsg?.content ?? "" },
+    ...conversationMsgs.map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    })),
+  ];
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");

@@ -361,8 +361,8 @@ export default function Interview() {
               {session.jobRoleName}
             </h1>
             {isInterviewActive && (
-              <div className={`interview-timer${totalTimeLeft <= 60 ? " urgent" : totalTimeLeft <= 5 * 60 ? " warning" : ""}`}>
-                🕒 Interview Time Left: {formatTime(totalTimeLeft)}
+              <div className={`interview-timer ${totalTimeLeft < 300 ? "warning" : ""}`}>
+                🕒 {formatTime(totalTimeLeft)}
               </div>
             )}
           </div>

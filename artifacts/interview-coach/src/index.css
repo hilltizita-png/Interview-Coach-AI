@@ -161,10 +161,6 @@
   color: hsl(38 92% 50%);
 }
 
-.interview-timer.urgent {
-  color: hsl(0 84% 60%);
-}
-
 /* Duration Selection */
 .duration-select {
   background: hsl(var(--card));

@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: openai
+    description: OpenAI AI chat, image, and audio operations
+  - name: interview
+    description: Interview session operations
 paths:
   /healthz:
     get:
@@ -24,6 +28,247 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /openai/conversations:
+    get:
+      operationId: listOpenaiConversations
+      tags: [openai]
+      summary: List all conversations
+      responses:
+        "200":
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OpenaiConversation"
+    post:
+      operationId: createOpenaiConversation
+      tags: [openai]
+      summary: Create a new conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOpenaiConversationBody"
+      responses:
+        "201":
+          description: Created conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiConversation"
+  /openai/conversations/{id}:
+    get:
+      operationId: getOpenaiConversation
+      tags: [openai]
+      summary: Get conversation with messages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Conversation with messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiConversationWithMessages"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiError"
+    delete:
+      operationId: deleteOpenaiConversation
+      tags: [openai]
+      summary: Delete a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiError"
+  /openai/conversations/{id}/messages:
+    get:
+      operationId: listOpenaiMessages
+      tags: [openai]
+      summary: List messages in a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OpenaiMessage"
+    post:
+      operationId: sendOpenaiMessage
+      tags: [openai]
+      summary: Send a text message and receive a streaming text response
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendOpenaiMessageBody"
+      responses:
+        "200":
+          description: SSE stream of assistant text chunks
+          content:
+            text/event-stream: {}
+  /interview/roles:
+    get:
+      operationId: listJobRoles
+      tags: [interview]
+      summary: List available job roles
+      responses:
+        "200":
+          description: List of job roles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JobRole"
+  /interview/sessions:
+    get:
+      operationId: listInterviewSessions
+      tags: [interview]
+      summary: List all interview sessions
+      responses:
+        "200":
+          description: List of interview sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InterviewSession"
+    post:
+      operationId: createInterviewSession
+      tags: [interview]
+      summary: Create a new interview session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInterviewSessionBody"
+      responses:
+        "201":
+          description: Created session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewSession"
+  /interview/sessions/{id}:
+    get:
+      operationId: getInterviewSession
+      tags: [interview]
+      summary: Get interview session with messages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Session with messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewSessionWithMessages"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiError"
+    delete:
+      operationId: deleteInterviewSession
+      tags: [interview]
+      summary: Delete an interview session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+  /interview/sessions/{id}/chat:
+    post:
+      operationId: sendInterviewMessage
+      tags: [interview]
+      summary: Send a message to the AI interviewer and receive streaming response
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendInterviewMessageBody"
+      responses:
+        "200":
+          description: SSE stream of AI response chunks
+          content:
+            text/event-stream: {}
+  /interview/sessions/{id}/feedback:
+    get:
+      operationId: getInterviewFeedback
+      tags: [interview]
+      summary: Get AI feedback summary for an interview session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Feedback summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewFeedback"
+        "404":
+          description: Not found
 components:
   schemas:
     HealthStatus:
@@ -33,4 +278,203 @@ components:
           type: string
       required:
         - status
-
+    OpenaiConversation:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - createdAt
+    OpenaiMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        role:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - conversationId
+        - role
+        - content
+        - createdAt
+    CreateOpenaiConversationBody:
+      type: object
+      properties:
+        title:
+          type: string
+      required:
+        - title
+    SendOpenaiMessageBody:
+      type: object
+      properties:
+        content:
+          type: string
+      required:
+        - content
+    SendOpenaiVoiceMessageBody:
+      type: object
+      properties:
+        audio:
+          type: string
+          description: Base64-encoded audio data
+      required:
+        - audio
+    OpenaiConversationWithMessages:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpenaiMessage"
+      required:
+        - id
+        - title
+        - createdAt
+        - messages
+    GenerateOpenaiImageBody:
+      type: object
+      properties:
+        prompt:
+          type: string
+        size:
+          type: string
+          enum: ["1024x1024", "512x512", "256x256"]
+      required:
+        - prompt
+    GenerateOpenaiImageResponse:
+      type: object
+      properties:
+        b64_json:
+          type: string
+      required:
+        - b64_json
+    OpenaiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+    JobRole:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+      required:
+        - id
+        - name
+        - category
+        - description
+    InterviewSession:
+      type: object
+      properties:
+        id:
+          type: integer
+        jobRole:
+          type: string
+        jobRoleName:
+          type: string
+        conversationId:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - jobRole
+        - jobRoleName
+        - conversationId
+        - createdAt
+    InterviewSessionWithMessages:
+      type: object
+      properties:
+        id:
+          type: integer
+        jobRole:
+          type: string
+        jobRoleName:
+          type: string
+        conversationId:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpenaiMessage"
+      required:
+        - id
+        - jobRole
+        - jobRoleName
+        - conversationId
+        - createdAt
+        - messages
+    CreateInterviewSessionBody:
+      type: object
+      properties:
+        jobRole:
+          type: string
+        jobRoleName:
+          type: string
+      required:
+        - jobRole
+        - jobRoleName
+    SendInterviewMessageBody:
+      type: object
+      properties:
+        content:
+          type: string
+      required:
+        - content
+    InterviewFeedback:
+      type: object
+      properties:
+        sessionId:
+          type: integer
+        overallScore:
+          type: integer
+        strengths:
+          type: array
+          items:
+            type: string
+        areasForImprovement:
+          type: array
+          items:
+            type: string
+        summary:
+          type: string
+      required:
+        - sessionId
+        - overallScore
+        - strengths
+        - areasForImprovement
+        - summary

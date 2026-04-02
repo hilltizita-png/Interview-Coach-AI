@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "AI Interview Coach"
+version = "1.0.0"
+id = "artifacts/interview-coach"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25252
+
+[services.development]
+run = "pnpm --filter @workspace/interview-coach run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/interview-coach", "run", "build" ]
+publicDir = "artifacts/interview-coach/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25252"
+BASE_PATH = "/"

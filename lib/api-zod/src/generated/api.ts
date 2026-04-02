@@ -14,3 +14,170 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * @summary List all conversations
+ */
+export const ListOpenaiConversationsResponseItem = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  createdAt: zod.coerce.date(),
+});
+export const ListOpenaiConversationsResponse = zod.array(
+  ListOpenaiConversationsResponseItem,
+);
+
+/**
+ * @summary Create a new conversation
+ */
+export const CreateOpenaiConversationBody = zod.object({
+  title: zod.string(),
+});
+
+/**
+ * @summary Get conversation with messages
+ */
+export const GetOpenaiConversationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetOpenaiConversationResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  createdAt: zod.coerce.date(),
+  messages: zod.array(
+    zod.object({
+      id: zod.number(),
+      conversationId: zod.number(),
+      role: zod.string(),
+      content: zod.string(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Delete a conversation
+ */
+export const DeleteOpenaiConversationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List messages in a conversation
+ */
+export const ListOpenaiMessagesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListOpenaiMessagesResponseItem = zod.object({
+  id: zod.number(),
+  conversationId: zod.number(),
+  role: zod.string(),
+  content: zod.string(),
+  createdAt: zod.coerce.date(),
+});
+export const ListOpenaiMessagesResponse = zod.array(
+  ListOpenaiMessagesResponseItem,
+);
+
+/**
+ * @summary Send a text message and receive a streaming text response
+ */
+export const SendOpenaiMessageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SendOpenaiMessageBody = zod.object({
+  content: zod.string(),
+});
+
+/**
+ * @summary List available job roles
+ */
+export const ListJobRolesResponseItem = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  category: zod.string(),
+  description: zod.string(),
+});
+export const ListJobRolesResponse = zod.array(ListJobRolesResponseItem);
+
+/**
+ * @summary List all interview sessions
+ */
+export const ListInterviewSessionsResponseItem = zod.object({
+  id: zod.number(),
+  jobRole: zod.string(),
+  jobRoleName: zod.string(),
+  conversationId: zod.number(),
+  createdAt: zod.coerce.date(),
+});
+export const ListInterviewSessionsResponse = zod.array(
+  ListInterviewSessionsResponseItem,
+);
+
+/**
+ * @summary Create a new interview session
+ */
+export const CreateInterviewSessionBody = zod.object({
+  jobRole: zod.string(),
+  jobRoleName: zod.string(),
+});
+
+/**
+ * @summary Get interview session with messages
+ */
+export const GetInterviewSessionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetInterviewSessionResponse = zod.object({
+  id: zod.number(),
+  jobRole: zod.string(),
+  jobRoleName: zod.string(),
+  conversationId: zod.number(),
+  createdAt: zod.coerce.date(),
+  messages: zod.array(
+    zod.object({
+      id: zod.number(),
+      conversationId: zod.number(),
+      role: zod.string(),
+      content: zod.string(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Delete an interview session
+ */
+export const DeleteInterviewSessionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Send a message to the AI interviewer and receive streaming response
+ */
+export const SendInterviewMessageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SendInterviewMessageBody = zod.object({
+  content: zod.string(),
+});
+
+/**
+ * @summary Get AI feedback summary for an interview session
+ */
+export const GetInterviewFeedbackParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetInterviewFeedbackResponse = zod.object({
+  sessionId: zod.number(),
+  overallScore: zod.number(),
+  strengths: zod.array(zod.string()),
+  areasForImprovement: zod.array(zod.string()),
+  summary: zod.string(),
+});

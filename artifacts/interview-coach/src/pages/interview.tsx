@@ -202,6 +202,7 @@ export default function Interview() {
 
   // Start timer when the last message is from the assistant
   useEffect(() => {
+    if (!isInterviewActive) return;
     if (localMessages.length === 0) return;
     if (timerDuration === 0) return;
 
@@ -210,7 +211,7 @@ export default function Interview() {
       setTimeLeft(timerDuration);
       setIsTimerActive(true);
     }
-  }, [localMessages]);
+  }, [localMessages, isInterviewActive]);
 
   // Pause timer while streaming
   useEffect(() => {

@@ -3,9 +3,16 @@ import { useRoute, useLocation, Link } from "wouter";
 import { useGetInterviewSession, getGetInterviewSessionQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Send, CheckCircle2, Bot, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, Send, CheckCircle2, Bot, Volume2, VolumeX, Mic, MicOff } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
+
+declare global {
+  interface Window {
+    SpeechRecognition: typeof SpeechRecognition;
+    webkitSpeechRecognition: typeof SpeechRecognition;
+  }
+}
 
 interface LocalMessage {
   id: number | string;
@@ -28,6 +35,7 @@ export default function Interview() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [speechEnabled, setSpeechEnabled] = useState(true);
+  const [isListening, setIsListening] = useState(false);
 
   const speak = useCallback((text: string) => {
     window.speechSynthesis.cancel();
@@ -42,6 +50,30 @@ export default function Interview() {
     return () => {
       window.speechSynthesis.cancel();
     };
+  }, []);
+
+  const handleMicClick = useCallback(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition not supported in this browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+    };
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+
+    recognition.start();
   }, []);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -279,12 +311,27 @@ export default function Interview() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={isStreaming ? "Wait for the coach to finish..." : "Type your response... (Press Enter to send)"}
-            className="min-h-[60px] max-h-[200px] resize-none pr-12 rounded-xl border-input bg-background shadow-sm focus-visible:ring-1 focus-visible:ring-primary text-base"
-            disabled={isStreaming}
+            placeholder={
+              isStreaming ? "Wait for the coach to finish..."
+              : isListening ? "Listening..."
+              : "Type or speak your response... (Enter to send)"
+            }
+            className="min-h-[60px] max-h-[200px] resize-none pr-24 rounded-xl border-input bg-background shadow-sm focus-visible:ring-1 focus-visible:ring-primary text-base"
+            disabled={isStreaming || isListening}
             data-testid="input-chat"
             rows={2}
           />
+          <Button
+            size="icon"
+            variant="ghost"
+            className={`absolute right-14 bottom-3 rounded-lg w-10 h-10 ${isListening ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
+            onClick={handleMicClick}
+            disabled={isStreaming}
+            data-testid="button-mic"
+            title={isListening ? "Listening..." : "Speak your answer"}
+          >
+            {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+          </Button>
           <Button 
             size="icon" 
             className="absolute right-3 bottom-3 rounded-lg w-10 h-10 shadow-sm"

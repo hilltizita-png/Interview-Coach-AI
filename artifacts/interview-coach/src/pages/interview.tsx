@@ -96,6 +96,14 @@ interface LocalMessage {
 const TIMER_OPTIONS = [15, 30, 60, 0] as const;
 type TimerDuration = typeof TIMER_OPTIONS[number];
 
+const SESSION_OPTIONS = [15, 30, 45, 60] as const;
+
+function formatTime(seconds: number) {
+  const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+  const s = (seconds % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
+
 export default function Interview() {
   const [, params] = useRoute("/interview/:sessionId");
   const sessionId = params?.sessionId ? parseInt(params.sessionId, 10) : 0;
@@ -117,6 +125,10 @@ export default function Interview() {
   const [timerDuration, setTimerDuration] = useState<TimerDuration>(15);
   const [timeLeft, setTimeLeft] = useState(15);
   const [isTimerActive, setIsTimerActive] = useState(false);
+
+  const [interviewDuration, setInterviewDuration] = useState(30); // minutes
+  const [totalTimeLeft, setTotalTimeLeft] = useState(30 * 60); // seconds
+  const [isInterviewActive, setIsInterviewActive] = useState(false);
 
   useEffect(() => {
     window.speechSynthesis.onvoiceschanged = () => {
@@ -160,6 +172,27 @@ export default function Interview() {
       isNarration ? speakAttenborough(lastMessage.content) : speak(lastMessage.content);
     }
   }, [localMessages, speechEnabled, isNarration]);
+
+  // Start session timer on first message
+  useEffect(() => {
+    if (localMessages.length > 0 && !isInterviewActive) {
+      setIsInterviewActive(true);
+    }
+  }, [localMessages]);
+
+  // Session timer countdown
+  useEffect(() => {
+    if (!isInterviewActive) return;
+
+    if (totalTimeLeft === 0) {
+      setIsInterviewActive(false);
+      setLocation(`/feedback/${sessionId}`);
+      return;
+    }
+
+    const timer = setTimeout(() => setTotalTimeLeft(prev => prev - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [totalTimeLeft, isInterviewActive]);
 
   // Start timer when the last message is from the assistant
   useEffect(() => {
@@ -258,6 +291,12 @@ export default function Interview() {
     setTimeLeft(d);
   };
 
+  const handleInterviewDurationChange = (mins: number) => {
+    setInterviewDuration(mins);
+    setTotalTimeLeft(mins * 60);
+    setIsInterviewActive(false);
+  };
+
   if (isLoading) {
     return (
       <div className="h-[100dvh] flex flex-col bg-background">
@@ -296,14 +335,35 @@ export default function Interview() {
             <h1 className="font-serif font-bold text-lg leading-none" data-testid="text-role-name">
               {session.jobRoleName}
             </h1>
-            <span className="text-xs text-muted-foreground">Practice Session</span>
+            <span className={`text-xs tabular-nums font-medium ${
+              isInterviewActive && totalTimeLeft <= 5 * 60
+                ? totalTimeLeft <= 60 ? "text-red-500" : "text-amber-500"
+                : "text-muted-foreground"
+            }`}>
+              {isInterviewActive ? formatTime(totalTimeLeft) : "Practice Session"}
+            </span>
           </div>
         </div>
         
         <div className="flex items-center gap-3">
-          {/* Timer duration selector */}
+          {/* Session duration selector */}
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Timer className="w-3.5 h-3.5" />
+            {SESSION_OPTIONS.map(m => (
+              <button
+                key={m}
+                onClick={() => handleInterviewDurationChange(m)}
+                className={`px-2 py-0.5 rounded-md font-medium transition-colors ${interviewDuration === m ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                data-testid={`session-option-${m}`}
+              >
+                {m}m
+              </button>
+            ))}
+          </div>
+
+          {/* Per-question timer selector */}
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Timer className="w-3 h-3 opacity-60" />
             {TIMER_OPTIONS.map(d => (
               <button
                 key={d}

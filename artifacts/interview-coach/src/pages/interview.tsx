@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { streamInterviewReply } from "@/services/ai";
 import { useRoute, useLocation, Link } from "wouter";
 import { useGetInterviewSession, getGetInterviewSessionQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -167,40 +168,11 @@ export default function Interview() {
     setStreamingContent("");
 
     try {
-      const response = await fetch(`/api/interview/sessions/${sessionId}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: userMessageContent }),
-      });
-
-      if (!response.ok) throw new Error("Failed to send message");
-      if (!response.body) throw new Error("No response body");
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let assistantContent = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.content) {
-                assistantContent += data.content;
-                setStreamingContent(assistantContent);
-              }
-            } catch (e) {
-              console.error("Error parsing SSE JSON", e);
-            }
-          }
-        }
-      }
+      const assistantContent = await streamInterviewReply(
+        sessionId,
+        userMessageContent,
+        (text) => setStreamingContent(text),
+      );
 
       // Once done, add the final assistant message and clear streaming state
       setLocalMessages(prev => [...prev, { id: `assistant-${tempId}`, role: "assistant", content: assistantContent }]);

@@ -14,6 +14,22 @@ declare global {
   }
 }
 
+function speak(text: string) {
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "en-US";
+  utterance.rate = 1.0;
+  utterance.pitch = 1.0;
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find(v =>
+    v.name.includes("Google US English") ||
+    v.name.includes("Samantha") ||
+    v.name.includes("Microsoft")
+  );
+  if (preferred) utterance.voice = preferred;
+  window.speechSynthesis.speak(utterance);
+}
+
 function speakAsNarrator(text: string) {
   window.speechSynthesis.cancel();
 
@@ -93,6 +109,7 @@ export default function Interview() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [speechEnabled, setSpeechEnabled] = useState(true);
+  const [isNarration, setIsNarration] = useState(true);
   const [isListening, setIsListening] = useState(false);
 
   useEffect(() => {
@@ -134,9 +151,9 @@ export default function Interview() {
     if (localMessages.length === 0) return;
     const lastMessage = localMessages[localMessages.length - 1];
     if (lastMessage.role === "assistant" && speechEnabled) {
-      speakAsNarrator(lastMessage.content);
+      isNarration ? speakAsNarrator(lastMessage.content) : speak(lastMessage.content);
     }
-  }, [localMessages, speechEnabled]);
+  }, [localMessages, speechEnabled, isNarration]);
 
   const handleSendMessage = async () => {
     if (!input.trim() || isStreaming) return;
@@ -252,7 +269,19 @@ export default function Interview() {
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {speechEnabled && (
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={isNarration}
+                onChange={() => setIsNarration(prev => !prev)}
+                className="accent-primary"
+                data-testid="checkbox-narration"
+              />
+              Narration Mode
+            </label>
+          )}
           <Button
             variant="ghost"
             size="icon"

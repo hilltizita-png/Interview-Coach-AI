@@ -30,29 +30,30 @@ function speak(text: string) {
   window.speechSynthesis.speak(utterance);
 }
 
-function speakAsNarrator(text: string) {
+function speakAttenborough(text: string) {
   window.speechSynthesis.cancel();
 
-  const voices = window.speechSynthesis.getVoices();
-  // Prefer warm, gentle voices — female or soft male
-  const narratorVoice =
-    voices.find(v =>
-      v.name.includes("Google UK English Female") ||
-      v.name.includes("Samantha") ||   // macOS — warm & clear
-      v.name.includes("Karen") ||      // macOS Australian — gentle
-      v.name.includes("Moira") ||      // macOS Irish — soft
-      v.name.includes("Microsoft Zira") || // Windows — friendly female
-      v.name.includes("Google US English")
-    ) ?? null;
+  const base = new SpeechSynthesisUtterance();
+  base.lang = "en-GB";
+  base.rate = 0.82;
+  base.pitch = 0.85;
 
-  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-  sentences.forEach((line, i) => {
-    const seg = new SpeechSynthesisUtterance(line.trim());
-    seg.lang = "en-US";
-    seg.rate = 0.85;   // unhurried, storyteller pacing
-    seg.pitch = 1.1;   // slightly lifted — warm, not flat
-    seg.voice = narratorVoice;
-    setTimeout(() => window.speechSynthesis.speak(seg), i * 900);
+  const voices = window.speechSynthesis.getVoices();
+  const attenboroughish =
+    voices.find(v =>
+      v.name.includes("UK English Male") ||
+      v.name.includes("Daniel") ||
+      v.name.includes("Microsoft George") ||
+      v.name.includes("Brian")
+    );
+
+  if (attenboroughish) base.voice = attenboroughish;
+
+  const segments = text.match(/[^.!?]+[.!?]+/g) || [text];
+  segments.forEach((line, i) => {
+    const u = new SpeechSynthesisUtterance(line.trim());
+    Object.assign(u, base);
+    setTimeout(() => window.speechSynthesis.speak(u), i * 1100);
   });
 }
 
@@ -147,7 +148,7 @@ export default function Interview() {
     if (localMessages.length === 0) return;
     const lastMessage = localMessages[localMessages.length - 1];
     if (lastMessage.role === "assistant" && speechEnabled) {
-      isNarration ? speakAsNarrator(lastMessage.content) : speak(lastMessage.content);
+      isNarration ? speakAttenborough(lastMessage.content) : speak(lastMessage.content);
     }
   }, [localMessages, speechEnabled, isNarration]);
 

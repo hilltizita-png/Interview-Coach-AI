@@ -13,26 +13,48 @@ export default function Home() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [jobSummary, setJobSummary] = useState<string | null>(null);
+  const [pendingRoleId, setPendingRoleId] = useState<string | null>(null);
   
   const { data: roles, isLoading, error } = useListJobRoles();
   const createSession = useCreateInterviewSession();
 
-  const handleStartSession = (roleId: string, roleName: string) => {
+  const startSession = (roleId: string, roleName: string, jobContext?: string) => {
     createSession.mutate(
-      { data: { jobRole: roleId, jobRoleName: roleName, jobContext: jobSummary?.trim() || undefined } },
+      { data: { jobRole: roleId, jobRoleName: roleName, jobContext } },
       {
-        onSuccess: (session) => {
-          setLocation(`/interview/${session.id}`);
-        },
+        onSuccess: (session) => setLocation(`/interview/${session.id}`),
         onError: () => {
-          toast({
-            title: "Could not start session",
-            description: "Please try again later.",
-            variant: "destructive"
-          });
-        }
+          setPendingRoleId(null);
+          toast({ title: "Could not start session", description: "Please try again later.", variant: "destructive" });
+        },
       }
     );
+  };
+
+  const handleRoleSelect = async (roleId: string, roleName: string) => {
+    if (pendingRoleId) return;
+    setPendingRoleId(roleId);
+
+    const existingContext = jobSummary?.trim();
+    if (existingContext) {
+      startSession(roleId, roleName, existingContext);
+      return;
+    }
+
+    // No job context yet — research this role automatically then start
+    try {
+      const res = await fetch("/api/interview/research-role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: roleName }),
+      });
+      const data = await res.json();
+      setJobSummary(data.summary);
+      startSession(roleId, roleName, data.summary);
+    } catch {
+      toast({ title: "Could not research role", description: "Starting without job context.", variant: "destructive" });
+      startSession(roleId, roleName);
+    }
   };
 
   // Group roles by category
@@ -124,12 +146,14 @@ export default function Home() {
                         {role.description}
                       </CardDescription>
                       <Button 
-                        onClick={() => handleStartSession(role.id, role.name)}
+                        onClick={() => handleRoleSelect(role.id, role.name)}
                         className="w-full justify-between group-hover:bg-primary"
-                        disabled={createSession.isPending}
+                        disabled={pendingRoleId !== null}
                         data-testid={`button-start-${role.id}`}
                       >
-                        {createSession.isPending ? "Starting..." : "Start Practice"}
+                        {pendingRoleId === role.id
+                          ? (createSession.isPending ? "Starting..." : "Researching role...")
+                          : "Start Practice"}
                         <ArrowRight className="w-4 h-4 ml-2 opacity-70 group-hover:translate-x-1 transition-transform" />
                       </Button>
                     </CardContent>

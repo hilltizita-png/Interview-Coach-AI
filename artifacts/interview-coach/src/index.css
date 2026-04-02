@@ -148,6 +148,23 @@
   font-weight: bold;
 }
 
+/* Interview Session Timer */
+.interview-timer {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.interview-timer.warning {
+  color: hsl(38 92% 50%);
+}
+
+.interview-timer.urgent {
+  color: hsl(0 84% 60%);
+}
+
 /* Duration Selection */
 .duration-select {
   background: hsl(var(--card));

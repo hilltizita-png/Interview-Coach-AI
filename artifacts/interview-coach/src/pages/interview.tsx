@@ -360,13 +360,11 @@ export default function Interview() {
             <h1 className="font-serif font-bold text-lg leading-none" data-testid="text-role-name">
               {session.jobRoleName}
             </h1>
-            <span className={`text-xs tabular-nums font-medium ${
-              isInterviewActive && totalTimeLeft <= 5 * 60
-                ? totalTimeLeft <= 60 ? "text-red-500" : "text-amber-500"
-                : "text-muted-foreground"
-            }`}>
-              {isInterviewActive ? formatTime(totalTimeLeft) : "Practice Session"}
-            </span>
+            {isInterviewActive && (
+              <div className={`interview-timer${totalTimeLeft <= 60 ? " urgent" : totalTimeLeft <= 5 * 60 ? " warning" : ""}`}>
+                🕒 Interview Time Left: {formatTime(totalTimeLeft)}
+              </div>
+            )}
           </div>
         </div>
         

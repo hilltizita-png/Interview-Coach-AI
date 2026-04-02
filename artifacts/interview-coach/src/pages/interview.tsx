@@ -99,9 +99,9 @@ type TimerDuration = typeof TIMER_OPTIONS[number];
 const SESSION_OPTIONS = [15, 30, 45, 60] as const;
 
 function formatTime(seconds: number) {
-  const m = Math.floor(seconds / 60).toString().padStart(2, "0");
-  const s = (seconds % 60).toString().padStart(2, "0");
-  return `${m}:${s}`;
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
 export default function Interview() {

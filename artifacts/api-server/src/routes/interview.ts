@@ -200,16 +200,23 @@ router.post("/interview/sessions/:id/chat", async (req, res): Promise<void> => {
     return;
   }
 
-  await db.insert(messages).values({
-    conversationId: session.conversationId,
-    role: "user",
-    content: parsed.data.content,
-  });
+  const clientMessages = parsed.data.messages;
+  const context = parsed.data.context;
 
-  const systemPrompt = session.jobContext
+  // Persist the last user message (final entry in the client messages array)
+  const lastUserMsg = [...clientMessages].reverse().find((m) => m.role === "user");
+  if (lastUserMsg) {
+    await db.insert(messages).values({
+      conversationId: session.conversationId,
+      role: "user",
+      content: lastUserMsg.content,
+    });
+  }
+
+  const systemPrompt = context
     ? `You are an AI interview coach. Use the following job description to tailor your questions:
 
-${session.jobContext}
+${context}
 
 Ask one question at a time, relevant to the responsibilities and skills above.
 After the user's answer, give short constructive feedback, then proceed.`
@@ -217,17 +224,9 @@ After the user's answer, give short constructive feedback, then proceed.`
 Ask one question at a time, relevant to the role.
 After the user's answer, give short constructive feedback, then proceed.`;
 
-  const history = await db
-    .select()
-    .from(messages)
-    .where(eq(messages.conversationId, session.conversationId))
-    .orderBy(asc(messages.createdAt));
-
-  const conversationMsgs = history.filter((m) => m.role !== "system");
-
   const chatMessages = [
     { role: "system" as const, content: systemPrompt },
-    ...conversationMsgs.map((m) => ({
+    ...clientMessages.map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
     })),

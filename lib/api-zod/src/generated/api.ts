@@ -137,6 +137,7 @@ export const GetInterviewSessionResponse = zod.object({
   id: zod.number(),
   jobRole: zod.string(),
   jobRoleName: zod.string(),
+  jobContext: zod.string().nullable().optional(),
   conversationId: zod.number(),
   createdAt: zod.coerce.date(),
   messages: zod.array(
@@ -165,7 +166,8 @@ export const SendInterviewMessageParams = zod.object({
 });
 
 export const SendInterviewMessageBody = zod.object({
-  content: zod.string(),
+  context: zod.string().optional(),
+  messages: zod.array(zod.object({ role: zod.string(), content: zod.string() })),
 });
 
 /**

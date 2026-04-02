@@ -168,9 +168,15 @@ export default function Interview() {
     setStreamingContent("");
 
     try {
+      const messagesForApi = [
+        ...localMessages,
+        { id: `user-${tempId}`, role: "user" as const, content: userMessageContent },
+      ].map(({ role, content }) => ({ role, content }));
+
       const assistantContent = await streamInterviewReply(
         sessionId,
-        userMessageContent,
+        session?.jobContext ?? undefined,
+        messagesForApi,
         (text) => setStreamingContent(text),
       );
 

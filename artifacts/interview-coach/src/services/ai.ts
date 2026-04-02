@@ -1,12 +1,18 @@
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export async function streamInterviewReply(
   sessionId: number,
-  content: string,
+  context: string | undefined,
+  messages: ChatMessage[],
   onChunk: (text: string) => void,
 ): Promise<string> {
   const response = await fetch(`/api/interview/sessions/${sessionId}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ context, messages }),
   });
 
   if (!response.ok) throw new Error("Failed to send message");

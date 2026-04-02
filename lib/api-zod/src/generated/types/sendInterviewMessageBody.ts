@@ -7,5 +7,6 @@
  */
 
 export interface SendInterviewMessageBody {
-  content: string;
+  context?: string;
+  messages: Array<{ role: string; content: string }>;
 }

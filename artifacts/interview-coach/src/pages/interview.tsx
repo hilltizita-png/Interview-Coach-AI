@@ -412,7 +412,7 @@ export default function Interview() {
               timeLeft > timerDuration * 0.5 ? "text-green-500" :
               timeLeft > timerDuration * 0.25 ? "text-amber-500" :
               "text-red-500"
-            }`}>
+            } ${timeLeft <= 5 ? "animate-pulse" : ""}`}>
               ⏳ {timeLeft}s
             </div>
           )}

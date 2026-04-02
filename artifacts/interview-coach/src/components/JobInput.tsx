@@ -8,12 +8,13 @@ interface JobInputProps {
   onJobExtracted: (summary: string) => void;
   onClear: () => void;
   summary: string | null;
+  defaultOpen?: boolean;
 }
 
-export default function JobInput({ onJobExtracted, onClear, summary }: JobInputProps) {
+export default function JobInput({ onJobExtracted, onClear, summary, defaultOpen = false }: JobInputProps) {
   const [posting, setPosting] = useState("");
   const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   async function handleAnalyze() {
     setLoading(true);

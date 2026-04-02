@@ -19,7 +19,7 @@ export default function Home() {
 
   const handleStartSession = (roleId: string, roleName: string) => {
     createSession.mutate(
-      { data: { jobRole: roleId, jobRoleName: roleName, jobContext: jobSummary ?? undefined } },
+      { data: { jobRole: roleId, jobRoleName: roleName, jobContext: jobSummary?.trim() || undefined } },
       {
         onSuccess: (session) => {
           setLocation(`/interview/${session.id}`);
@@ -46,22 +46,46 @@ export default function Home() {
     <Layout>
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto p-6 md:p-12">
-          <header className="mb-12 max-w-2xl">
-            <h1 className="text-4xl md:text-5xl font-serif font-bold text-foreground mb-4">
-              Select a Role
-            </h1>
-            <p className="text-lg text-muted-foreground">
-              Choose the position you want to practice for. I'll act as the hiring manager and ask you relevant questions. Take your time—this is a safe space to make mistakes and learn.
-            </p>
-          </header>
 
-          <JobInput
-            summary={jobSummary}
-            onJobExtracted={setJobSummary}
-            onClear={() => setJobSummary(null)}
-          />
+          {!jobSummary ? (
+            <>
+              <header className="mb-8 max-w-2xl">
+                <h1 className="text-4xl md:text-5xl font-serif font-bold text-foreground mb-4">
+                  What role are you interviewing for?
+                </h1>
+                <p className="text-lg text-muted-foreground">
+                  Paste a job posting and I'll tailor the interview questions to match. Or skip ahead and pick a role directly.
+                </p>
+              </header>
+              <JobInput
+                summary={jobSummary}
+                onJobExtracted={setJobSummary}
+                onClear={() => setJobSummary(null)}
+                defaultOpen
+              />
+              <Button variant="link" className="text-muted-foreground px-0 -mt-4" onClick={() => setJobSummary(" ")}>
+                Skip — just pick a role →
+              </Button>
+            </>
+          ) : (
+            <>
+              <header className="mb-8 max-w-2xl">
+                <h1 className="text-4xl md:text-5xl font-serif font-bold text-foreground mb-4">
+                  Select a Role
+                </h1>
+                <p className="text-lg text-muted-foreground">
+                  Choose the position you want to practice for. I'll act as the hiring manager and ask you relevant questions.
+                </p>
+              </header>
+              <JobInput
+                summary={jobSummary.trim() ? jobSummary : null}
+                onJobExtracted={setJobSummary}
+                onClear={() => setJobSummary("")}
+              />
+            </>
+          )}
 
-          {isLoading && (
+          {jobSummary !== null && isLoading && (
             <div className="space-y-8">
               <Skeleton className="h-8 w-48 mb-4" />
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -72,14 +96,14 @@ export default function Home() {
             </div>
           )}
 
-          {error && (
+          {jobSummary !== null && error && (
             <div className="bg-destructive/10 text-destructive p-4 rounded-lg flex items-center justify-between">
               <span>Could not load job roles.</span>
               <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Retry</Button>
             </div>
           )}
 
-          {groupedRoles && Object.entries(groupedRoles).map(([category, categoryRoles]) => (
+          {jobSummary !== null && groupedRoles && Object.entries(groupedRoles).map(([category, categoryRoles]) => (
             <div key={category} className="mb-12">
               <h2 className="text-2xl font-serif font-semibold mb-6 flex items-center gap-2">
                 <Briefcase className="w-5 h-5 text-primary" />

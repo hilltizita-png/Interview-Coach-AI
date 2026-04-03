@@ -19,7 +19,7 @@ export default function Home() {
   const { data: roles, isLoading, error } = useListJobRoles();
   const createSession = useCreateInterviewSession();
 
-  const startSession = (roleId: string, roleName: string, jobContext?: string) => {
+  const startSession = (roleId: string, roleName: string, jobContext?: string, options?: { newSession?: boolean }) => {
     createSession.mutate(
       { data: { jobRole: roleId, jobRoleName: roleName, jobContext } },
       {
@@ -40,7 +40,7 @@ export default function Home() {
   const handleRoleSelect = (roleId: string, roleName: string) => {
     if (pendingRoleId) return;
     setPendingRoleId(roleId);
-    startSession(roleId, roleName, jobSummary?.trim() || undefined);
+    startSession(roleId, roleName, jobSummary?.trim() || undefined, { newSession: true });
   };
 
   // Group roles by category

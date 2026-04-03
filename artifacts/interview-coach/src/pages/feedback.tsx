@@ -4,7 +4,16 @@ import { Layout } from "@/components/layout";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, CheckCircle2, ChevronRight, Target, Trophy, AlertTriangle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronRight, Target, Trophy, AlertTriangle, Zap } from "lucide-react";
+
+type FeedbackWithReadiness = {
+  overallScore: number;
+  strengths: string[];
+  areasForImprovement: string[];
+  summary: string;
+  readinessScore?: number;
+  readinessImprovements?: string[];
+};
 
 export default function Feedback() {
   const [, params] = useRoute("/feedback/:sessionId");
@@ -78,7 +87,18 @@ export default function Feedback() {
             </Card>
           )}
 
-          {feedback && (
+          {feedback && (() => {
+            const f = feedback as unknown as FeedbackWithReadiness;
+            const readiness = f.readinessScore ?? 0;
+            const readinessColor =
+              readiness >= 75 ? "text-emerald-600" :
+              readiness >= 50 ? "text-amber-600" :
+              "text-rose-600";
+            const readinessBorder =
+              readiness >= 75 ? "border-emerald-500/30 bg-emerald-500/5" :
+              readiness >= 50 ? "border-amber-500/30 bg-amber-500/5" :
+              "border-rose-500/30 bg-rose-500/5";
+            return (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
               
               {/* Score & Summary */}
@@ -149,6 +169,45 @@ export default function Feedback() {
                 </Card>
               </div>
               
+              {/* Job Readiness Score */}
+              {f.readinessScore !== undefined && (
+                <Card className={`border shadow-sm ${readinessBorder}`}>
+                  <CardHeader className="border-b border-inherit rounded-t-xl">
+                    <CardTitle className={`flex items-center gap-2 ${readinessColor}`}>
+                      <Zap className="w-5 h-5" />
+                      Job Readiness Score
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6 flex flex-col md:flex-row items-center gap-6">
+                    <div className="flex flex-col items-center shrink-0">
+                      <div className={`relative w-24 h-24 rounded-full border-8 border-current/20 flex items-center justify-center bg-card ${readinessColor}`}>
+                        <span className="text-3xl font-bold">{readiness}</span>
+                      </div>
+                      <span className="mt-2 text-xs font-medium tracking-widest uppercase text-muted-foreground">/ 100</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-muted-foreground mb-4">
+                        {readiness >= 75
+                          ? "You appear well-qualified for this role. Focus on closing the remaining gaps."
+                          : readiness >= 50
+                          ? "You have a solid foundation but have room to grow before applying."
+                          : "There are key skill gaps to address before you'll be competitive for this role."}
+                      </p>
+                      {(f.readinessImprovements ?? []).length > 0 && (
+                        <ul className="space-y-2">
+                          {(f.readinessImprovements ?? []).map((step, i) => (
+                            <li key={i} className="flex gap-2 text-sm text-foreground/80">
+                              <ChevronRight className={`w-4 h-4 shrink-0 mt-0.5 ${readinessColor}`} />
+                              {step}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               <div className="flex justify-center pt-8">
                 <Button variant="outline" size="lg" asChild className="px-8">
                   <Link href="/" data-testid="link-practice-again">Start Another Session</Link>
@@ -156,7 +215,8 @@ export default function Feedback() {
               </div>
 
             </div>
-          )}
+            );
+          })()}
 
         </div>
       </div>

@@ -296,17 +296,23 @@ router.get("/interview/sessions/:id/feedback", async (req, res): Promise<void> =
     .map((m) => `${m.role === "user" ? "Candidate" : "Interviewer"}: ${m.content}`)
     .join("\n\n");
 
+  const jobContext = session.jobContext
+    ? `\n\nJob Description:\n${session.jobContext}`
+    : "";
+
   const feedbackPrompt = `You are an expert interview coach. Review this mock interview transcript for the position of ${session.jobRoleName} and provide structured feedback.
 
 Transcript:
-${transcript}
+${transcript}${jobContext}
 
 Respond with a JSON object (no markdown, just raw JSON) in this exact format:
 {
   "overallScore": <integer 1-100>,
   "strengths": [<string>, <string>, <string>],
   "areasForImprovement": [<string>, <string>, <string>],
-  "summary": "<2-3 sentence overall summary>"
+  "summary": "<2-3 sentence overall summary>",
+  "readinessScore": <integer 1-100 rating how qualified the candidate appears for this specific role based on what they demonstrated>,
+  "readinessImprovements": [<string — specific actionable step to increase job readiness>, <string>, <string>]
 }`;
 
   const feedbackResponse = await openai.chat.completions.create({
@@ -326,6 +332,8 @@ Respond with a JSON object (no markdown, just raw JSON) in this exact format:
       strengths: ["Completed the interview session"],
       areasForImprovement: ["Continue practicing"],
       summary: "Keep practicing to improve your interview performance.",
+      readinessScore: 50,
+      readinessImprovements: ["Continue developing your skills for this role"],
     };
   }
 
@@ -335,6 +343,8 @@ Respond with a JSON object (no markdown, just raw JSON) in this exact format:
     strengths: feedback.strengths ?? [],
     areasForImprovement: feedback.areasForImprovement ?? [],
     summary: feedback.summary ?? "",
+    readinessScore: feedback.readinessScore ?? 50,
+    readinessImprovements: feedback.readinessImprovements ?? [],
   });
 });
 

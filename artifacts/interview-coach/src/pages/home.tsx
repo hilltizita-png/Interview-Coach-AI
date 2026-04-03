@@ -43,6 +43,18 @@ export default function Home() {
     startSession(roleId, roleName, jobSummary?.trim() || undefined, { newSession: true });
   };
 
+  const handleStartInterview = () => {
+    if (!jobSummary) {
+      alert("Please paste or generate a job first");
+      return;
+    }
+    startSession(
+      selectedRole?.id || "custom",
+      selectedRole?.name || "Custom Role",
+      jobSummary
+    );
+  };
+
   // Group roles by category
   const groupedRoles = roles?.reduce((acc, role) => {
     if (!acc[role.category]) acc[role.category] = [];

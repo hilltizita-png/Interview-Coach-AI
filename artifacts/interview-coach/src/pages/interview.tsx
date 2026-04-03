@@ -123,7 +123,7 @@ export default function Interview() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [speechEnabled, setSpeechEnabled] = useState(true);
-  const [isNarration, setIsNarration] = useState(true);
+  const [isNarration, setIsNarration] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [avatarFeedback, setAvatarFeedback] = useState<"good" | "needs improvement" | "thinking" | undefined>();
@@ -459,6 +459,18 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
             ))}
           </div>
 
+          {speechEnabled && (
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={isNarration}
+                onChange={() => setIsNarration(prev => !prev)}
+                className="accent-primary"
+                data-testid="checkbox-narration"
+              />
+              Narration
+            </label>
+          )}
           <Button
             variant="ghost"
             size="icon"

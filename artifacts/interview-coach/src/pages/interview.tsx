@@ -23,11 +23,14 @@ function speak(text: string, onStart?: () => void, onEnd?: () => void) {
   utterance.rate = 1.0;
   utterance.pitch = 1.0;
   const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find(v =>
-    v.name.includes("Google US English") ||
-    v.name.includes("Samantha") ||
-    v.name.includes("Microsoft")
-  );
+  const preferred =
+    voices.find(v =>
+      v.name.includes("Google US English") ||
+      v.name.includes("Samantha") ||
+      v.name.includes("Microsoft")
+    ) ||
+    voices.find(v => v.lang.startsWith("en")) ||
+    voices[0];
   if (preferred) utterance.voice = preferred;
   if (onStart) utterance.onstart = onStart;
   if (onEnd) utterance.onend = onEnd;
@@ -49,7 +52,10 @@ function speakAttenborough(text: string, onStart?: () => void, onEnd?: () => voi
       v.name.includes("Daniel") ||
       v.name.includes("Microsoft George") ||
       v.name.includes("Brian")
-    );
+    ) ||
+    voices.find(v => v.lang.startsWith("en-GB")) ||
+    voices.find(v => v.lang.startsWith("en")) ||
+    voices[0];
 
   if (attenboroughish) base.voice = attenboroughish;
 

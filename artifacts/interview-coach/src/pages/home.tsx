@@ -102,6 +102,11 @@ export default function Home() {
                 onJobExtracted={handleJobExtracted}
                 onClear={() => setJobSummary("")}
               />
+              {jobSummary?.trim() && (
+                <Button onClick={handleStartInterview} className="mb-6">
+                  Start Interview
+                </Button>
+              )}
             </>
           )}
 

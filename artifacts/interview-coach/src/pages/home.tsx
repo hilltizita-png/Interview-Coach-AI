@@ -13,6 +13,7 @@ export default function Home() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [jobSummary, setJobSummary] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [pendingRoleId, setPendingRoleId] = useState<string | null>(null);
   
   const { data: roles, isLoading, error } = useListJobRoles();
@@ -29,6 +30,11 @@ export default function Home() {
         },
       }
     );
+  };
+
+  const handleJobExtracted = (summary: string) => {
+    setJobSummary(summary);
+    setSelectedRole("Custom Role");
   };
 
   const handleRoleSelect = async (roleId: string, roleName: string) => {
@@ -81,7 +87,7 @@ export default function Home() {
               </header>
               <JobInput
                 summary={jobSummary}
-                onJobExtracted={setJobSummary}
+                onJobExtracted={handleJobExtracted}
                 onClear={() => setJobSummary(null)}
                 defaultOpen
               />
@@ -101,7 +107,7 @@ export default function Home() {
               </header>
               <JobInput
                 summary={jobSummary.trim() ? jobSummary : null}
-                onJobExtracted={setJobSummary}
+                onJobExtracted={handleJobExtracted}
                 onClear={() => setJobSummary("")}
               />
             </>

@@ -17,56 +17,49 @@ declare global {
 }
 
 function speak(text: string, onStart?: () => void, onEnd?: () => void) {
+  if (!text) return;
   window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "en-US";
-  utterance.rate = 1.0;
-  utterance.pitch = 1.0;
+
   const voices = window.speechSynthesis.getVoices();
-  const preferred =
-    voices.find(v =>
-      v.name.includes("Google US English") ||
-      v.name.includes("Samantha") ||
-      v.name.includes("Microsoft")
-    ) ||
-    voices.find(v => v.lang.startsWith("en")) ||
-    voices[0];
-  if (preferred) utterance.voice = preferred;
+  if (!voices.length) {
+    window.speechSynthesis.onvoiceschanged = () => speak(text, onStart, onEnd);
+    return;
+  }
+
+  const preferredVoice = voices.find(v => v.name.includes("Google US English"));
+  const englishVoice = voices.find(v => v.lang.startsWith("en"));
+  const voice = preferredVoice || englishVoice || voices[0];
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.voice = voice;
+  utterance.rate = 1;
+  utterance.pitch = 1;
   if (onStart) utterance.onstart = onStart;
   if (onEnd) utterance.onend = onEnd;
   window.speechSynthesis.speak(utterance);
 }
 
 function speakAttenborough(text: string, onStart?: () => void, onEnd?: () => void) {
+  if (!text) return;
   window.speechSynthesis.cancel();
 
-  const base = new SpeechSynthesisUtterance();
-  base.lang = "en-GB";
-  base.rate = 0.82;
-  base.pitch = 0.85;
-
   const voices = window.speechSynthesis.getVoices();
-  const attenboroughish =
-    voices.find(v =>
-      v.name.includes("UK English Male") ||
-      v.name.includes("Daniel") ||
-      v.name.includes("Microsoft George") ||
-      v.name.includes("Brian")
-    ) ||
-    voices.find(v => v.lang.startsWith("en-GB")) ||
-    voices.find(v => v.lang.startsWith("en")) ||
-    voices[0];
+  if (!voices.length) {
+    window.speechSynthesis.onvoiceschanged = () => speakAttenborough(text, onStart, onEnd);
+    return;
+  }
 
-  if (attenboroughish) base.voice = attenboroughish;
+  const preferredVoice = voices.find(v => v.name.includes("Alex"));
+  const englishVoice = voices.find(v => v.lang.startsWith("en"));
+  const voice = preferredVoice || englishVoice || voices[0];
 
-  const segments = text.match(/[^.!?]+[.!?]+/g) || [text];
-  segments.forEach((line, i) => {
-    const u = new SpeechSynthesisUtterance(line.trim());
-    Object.assign(u, base);
-    if (i === 0 && onStart) u.onstart = onStart;
-    if (i === segments.length - 1 && onEnd) u.onend = onEnd;
-    setTimeout(() => window.speechSynthesis.speak(u), i * 1100);
-  });
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.voice = voice;
+  utterance.rate = 0.9;
+  utterance.pitch = 1;
+  if (onStart) utterance.onstart = onStart;
+  if (onEnd) utterance.onend = onEnd;
+  window.speechSynthesis.speak(utterance);
 }
 
 function startListening(

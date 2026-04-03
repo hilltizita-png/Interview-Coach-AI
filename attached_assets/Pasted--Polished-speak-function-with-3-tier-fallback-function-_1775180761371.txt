@@ -1,0 +1,60 @@
+// Polished speak function with 3-tier fallback
+function speak(text, avatarId = "avatar") {
+  if (!text) return;
+
+  const avatar = document.getElementById(avatarId);
+
+  // Get available voices
+  let voices = speechSynthesis.getVoices();
+  if (!voices.length) {
+    // Load voices asynchronously if not yet loaded
+    speechSynthesis.onvoiceschanged = () => speak(text, avatarId);
+    return;
+  }
+
+  // 3-tier fallback
+  // 1. Named preferred voice (change as needed)
+  let preferredVoice = voices.find(v => v.name.includes("Google US English"));
+  // 2. Any English voice
+  let englishVoice = voices.find(v => v.lang.startsWith("en"));
+  // 3. First available voice
+  let voice = preferredVoice || englishVoice || voices[0];
+
+  // Create TTS utterance
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.voice = voice;
+  utterance.rate = 1;      // speed
+  utterance.pitch = 1;     // pitch
+
+  // Avatar animation: continuous pulse while speaking
+  utterance.onstart = () => avatar.classList.add("speaking");
+  utterance.onend = () => avatar.classList.remove("speaking");
+
+  speechSynthesis.speak(utterance);
+}
+
+// Example: Attenborough-style narrator variant
+function speakAttenborough(text, avatarId = "avatar") {
+  if (!text) return;
+
+  const avatar = document.getElementById(avatarId);
+  let voices = speechSynthesis.getVoices();
+  if (!voices.length) {
+    speechSynthesis.onvoiceschanged = () => speakAttenborough(text, avatarId);
+    return;
+  }
+
+  let preferredVoice = voices.find(v => v.name.includes("Alex")); // or another preferred voice
+  let englishVoice = voices.find(v => v.lang.startsWith("en"));
+  let voice = preferredVoice || englishVoice || voices[0];
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.voice = voice;
+  utterance.rate = 0.9; // slower, dramatic style
+  utterance.pitch = 1;
+
+  utterance.onstart = () => avatar.classList.add("speaking");
+  utterance.onend = () => avatar.classList.remove("speaking");
+
+  speechSynthesis.speak(utterance);
+}

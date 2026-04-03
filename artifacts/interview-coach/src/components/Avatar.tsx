@@ -1,3 +1,5 @@
+import avatarImg from "@assets/Screenshot_2026-04-02_at_8.00.01_PM_1775183091610.png";
+
 type Feedback = "good" | "needs improvement" | "thinking";
 
 interface AvatarProps {
@@ -5,26 +7,17 @@ interface AvatarProps {
   feedback?: Feedback;
 }
 
-const FEEDBACK_EMOJI: Record<Feedback, string> = {
-  thinking: "🤔",
-  good: "😃",
-  "needs improvement": "😐",
-};
-
 export default function Avatar({ isSpeaking, feedback }: AvatarProps) {
   return (
     <div className="avatar-container">
-      {feedback ? (
-        <div className={`avatar avatar-emoji ${feedback === "good" ? "good" : ""} ${isSpeaking ? "speaking" : ""}`}>
-          {FEEDBACK_EMOJI[feedback]}
-        </div>
-      ) : (
+      <div className={`avatar-wrapper ${isSpeaking ? "speaking" : ""} ${feedback === "good" ? "good" : ""}`}>
         <img
-          src="https://i.imgur.com/6VBx3io.png"
+          src={avatarImg}
           alt="AI Interviewer"
-          className={`avatar ${isSpeaking ? "speaking" : ""}`}
+          className="avatar-photo"
         />
-      )}
+        <div className={`avatar-mouth ${isSpeaking ? "talking" : ""}`} />
+      </div>
     </div>
   );
 }

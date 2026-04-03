@@ -219,7 +219,7 @@ router.post("/interview/sessions/:id/chat", async (req, res): Promise<void> => {
     : "";
 
   const systemPrompt = context
-    ? `You are an AI interview coach. Use the following job description to tailor your questions:
+    ? `You are an AI interview coach. You are interviewing for a role with the following description:
 
 ${context}
 

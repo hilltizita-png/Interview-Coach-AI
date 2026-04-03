@@ -13,7 +13,7 @@ export default function Home() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [jobSummary, setJobSummary] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<{ id: string; name: string } | null>(null);
   const [pendingRoleId, setPendingRoleId] = useState<string | null>(null);
   
   const { data: roles, isLoading, error } = useListJobRoles();
@@ -34,7 +34,7 @@ export default function Home() {
 
   const handleJobExtracted = (summary: string) => {
     setJobSummary(summary);
-    setSelectedRole("Custom Role");
+    setSelectedRole({ id: "custom", name: "Custom Job (from posting)" });
   };
 
   const handleRoleSelect = (roleId: string, roleName: string) => {

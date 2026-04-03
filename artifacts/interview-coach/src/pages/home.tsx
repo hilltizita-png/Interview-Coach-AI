@@ -37,30 +37,10 @@ export default function Home() {
     setSelectedRole("Custom Role");
   };
 
-  const handleRoleSelect = async (roleId: string, roleName: string) => {
+  const handleRoleSelect = (roleId: string, roleName: string) => {
     if (pendingRoleId) return;
     setPendingRoleId(roleId);
-
-    const existingContext = jobSummary?.trim();
-    if (existingContext) {
-      startSession(roleId, roleName, existingContext);
-      return;
-    }
-
-    // No job context yet — research this role automatically then start
-    try {
-      const res = await fetch("/api/interview/research-role", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: roleName }),
-      });
-      const data = await res.json();
-      setJobSummary(data.summary);
-      startSession(roleId, roleName, data.summary);
-    } catch {
-      toast({ title: "Could not research role", description: "Starting without job context.", variant: "destructive" });
-      startSession(roleId, roleName);
-    }
+    startSession(roleId, roleName, jobSummary?.trim() || undefined);
   };
 
   // Group roles by category

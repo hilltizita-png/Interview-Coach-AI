@@ -253,7 +253,8 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
     if (timerDuration === 0) return;
 
     const lastMessage = localMessages[localMessages.length - 1];
-    if (lastMessage.role === "assistant" && !lastMessage.isSystem) {
+    const userHasAnswered = localMessages.some(m => m.role === "user");
+    if (lastMessage.role === "assistant" && !lastMessage.isSystem && userHasAnswered) {
       setTimeLeft(timerDuration);
       setIsTimerActive(true);
     }
@@ -458,18 +459,6 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
             ))}
           </div>
 
-          {speechEnabled && (
-            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={isNarration}
-                onChange={() => setIsNarration(prev => !prev)}
-                className="accent-primary"
-                data-testid="checkbox-narration"
-              />
-              Narration
-            </label>
-          )}
           <Button
             variant="ghost"
             size="icon"

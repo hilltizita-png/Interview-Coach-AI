@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Send, CheckCircle2, Bot, Volume2, VolumeX, Mic, MicOff, Timer } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
-import Avatar from "@/components/Avatar";
+import TalkingAvatar from "@/components/TalkingAvatar";
 
 declare global {
   interface Window {
@@ -36,6 +36,11 @@ function speak(text: string, onStart?: () => void, onEnd?: () => void) {
   utterance.pitch = 1;
   if (onStart) utterance.onstart = onStart;
   if (onEnd) utterance.onend = onEnd;
+  utterance.onboundary = (e) => {
+    if (e.name === "word") {
+      window.dispatchEvent(new CustomEvent("avatar:boundary"));
+    }
+  };
   window.speechSynthesis.speak(utterance);
 }
 
@@ -59,6 +64,11 @@ function speakAttenborough(text: string, onStart?: () => void, onEnd?: () => voi
   utterance.pitch = 1;
   if (onStart) utterance.onstart = onStart;
   if (onEnd) utterance.onend = onEnd;
+  utterance.onboundary = (e) => {
+    if (e.name === "word") {
+      window.dispatchEvent(new CustomEvent("avatar:boundary"));
+    }
+  };
   window.speechSynthesis.speak(utterance);
 }
 
@@ -498,7 +508,7 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
 
       {/* Interview Screen */}
       <div className="interview-screen">
-        <Avatar isSpeaking={isSpeaking} feedback={avatarFeedback} />
+        <TalkingAvatar isSpeaking={isSpeaking} feedback={avatarFeedback} />
 
         <div className="chat-area">
           <div className="max-w-3xl mx-auto space-y-8 pb-4">

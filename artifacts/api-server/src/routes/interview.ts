@@ -52,9 +52,7 @@ router.post("/interview/sessions", async (req, res): Promise<void> => {
 
   const jobContext = parsed.data.jobContext ?? null;
 
-  const greeting = jobContext
-    ? `Let's begin your practice interview for the ${parsed.data.jobRoleName} role.\n\nBased on the job posting, here's what I'll be focusing on:\n${jobContext}\n\nAre you ready to get started?`
-    : `Let's begin your practice interview for the ${parsed.data.jobRoleName} role.\n\nI'll ask you a mix of behavioral and role-specific questions, one at a time. Take your time with each answer.\n\nAre you ready to get started?`;
+  const greeting = `Hi, thanks for coming in today. I'm conducting the interview for the ${parsed.data.jobRoleName} position. Let's get started — tell me a bit about yourself and what's brought you to this point in your career.`;
 
   await db.insert(messages).values({
     conversationId: convo.id,
@@ -219,15 +217,24 @@ router.post("/interview/sessions/:id/chat", async (req, res): Promise<void> => {
     : "";
 
   const systemPrompt = context
-    ? `You are an AI interview coach. You are interviewing for a role with the following description:
+    ? `You are an AI hiring manager conducting a real interview for a role with the following description:
 
 ${context}
 
-Ask one question at a time, relevant to the responsibilities and skills above.
-After the user's answer, give short constructive feedback, then proceed.${timeNote}`
-    : `You are an AI interview coach conducting a practice interview for a ${session.jobRoleName} position.
-Ask one question at a time, relevant to the role.
-After the user's answer, give short constructive feedback, then proceed.${timeNote}`;
+Rules:
+- Ask exactly one interview question at a time.
+- After the candidate answers, immediately ask the next relevant question without providing feedback, commentary, praise, or guidance.
+- Keep the interview flowing naturally like a real interview.
+- Do not coach, hint, or suggest how to improve answers during the session.
+- Only ask questions — never explain, evaluate, or summarize mid-session.${timeNote}`
+    : `You are an AI hiring manager conducting a practice interview for the ${session.jobRoleName} position.
+
+Rules:
+- Ask exactly one interview question at a time.
+- After the candidate answers, immediately ask the next relevant question without providing feedback, commentary, praise, or guidance.
+- Keep the interview flowing naturally like a real interview.
+- Do not coach, hint, or suggest how to improve answers during the session.
+- Only ask questions — never explain, evaluate, or summarize mid-session.${timeNote}`;
 
   const chatMessages = [
     { role: "system" as const, content: systemPrompt },
@@ -302,6 +309,13 @@ router.get("/interview/sessions/:id/feedback", async (req, res): Promise<void> =
 
   const feedbackPrompt = `You are an expert interview coach. Review this mock interview transcript for the position of ${session.jobRoleName} and provide structured feedback.
 
+Evaluate the candidate on:
+- Quality and relevance of answers
+- Tone: professionalism, warmth, and appropriateness of language
+- Confidence: assertiveness, directness, and avoidance of excessive hedging or filler phrases
+- Communication style: clarity, conciseness, and ability to stay on point
+- Body language signals inferred from written communication style (e.g., hesitation patterns, enthusiasm, assertiveness)
+
 Transcript:
 ${transcript}${jobContext}
 
@@ -310,9 +324,12 @@ Respond with a JSON object (no markdown, just raw JSON) in this exact format:
   "overallScore": <integer 1-100>,
   "strengths": [<string>, <string>, <string>],
   "areasForImprovement": [<string>, <string>, <string>],
-  "summary": "<2-3 sentence overall summary>",
+  "summary": "<2-3 sentence overall summary including observations on tone, confidence, and communication style>",
   "readinessScore": <integer 1-100 rating how qualified the candidate appears for this specific role based on what they demonstrated>,
-  "readinessImprovements": [<string — specific actionable step to increase job readiness>, <string>, <string>]
+  "readinessImprovements": [<string — specific actionable step to increase job readiness>, <string>, <string>],
+  "toneScore": <integer 1-100 rating professionalism and warmth of tone>,
+  "confidenceScore": <integer 1-100 rating assertiveness and confidence inferred from answers>,
+  "communicationScore": <integer 1-100 rating clarity and conciseness>
 }`;
 
   const feedbackResponse = await openai.chat.completions.create({

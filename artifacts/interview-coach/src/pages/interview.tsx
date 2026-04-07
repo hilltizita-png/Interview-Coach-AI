@@ -4,7 +4,7 @@ import { useRoute, useLocation, Link } from "wouter";
 import { useGetInterviewSession, getGetInterviewSessionQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Send, CheckCircle2, Bot, Volume2, VolumeX, Mic, MicOff, Timer } from "lucide-react";
+import { ArrowLeft, Send, CheckCircle2, Bot, Volume2, VolumeX, Mic, MicOff } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
 import TalkingAvatar from "@/components/TalkingAvatar";
@@ -138,13 +138,13 @@ export default function Interview() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [avatarFeedback, setAvatarFeedback] = useState<"good" | "needs improvement" | "thinking" | undefined>();
 
-  const [timerDuration, setTimerDuration] = useState<TimerDuration>(15);
-  const [timeLeft, setTimeLeft] = useState(15);
+  const [timerDuration, setTimerDuration] = useState<TimerDuration>(0);
+  const [timeLeft, setTimeLeft] = useState(0);
   const [isTimerActive, setIsTimerActive] = useState(false);
 
   const [interviewDuration, setInterviewDuration] = useState(30); // minutes
   const [totalTimeLeft, setTotalTimeLeft] = useState(30 * 60); // seconds
-  const [isInterviewActive, setIsInterviewActive] = useState(false);
+  const [isInterviewActive, setIsInterviewActive] = useState(true);
 
   useEffect(() => {
     window.speechSynthesis.onvoiceschanged = () => {
@@ -404,20 +404,6 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
 
   return (
     <div className="h-[100dvh] flex flex-col bg-background relative">
-      {/* Duration selection overlay */}
-      {!isInterviewActive && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-          <div className="duration-select">
-            <h3>Select Interview Length</h3>
-            <button onClick={() => startInterview(30)}>
-              30 Minutes
-            </button>
-            <button onClick={() => startInterview(60)}>
-              1 Hour
-            </button>
-          </div>
-        </div>
-      )}
       {/* Header */}
       <header className="border-b border-border bg-card shrink-0 flex items-center justify-between px-4 md:px-6 py-4 sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-4">
@@ -439,36 +425,6 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
         </div>
         
         <div className="flex items-center gap-3">
-          {/* Session duration selector */}
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Timer className="w-3.5 h-3.5" />
-            {SESSION_OPTIONS.map(m => (
-              <button
-                key={m}
-                onClick={() => handleInterviewDurationChange(m)}
-                className={`px-2 py-0.5 rounded-md font-medium transition-colors ${interviewDuration === m ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                data-testid={`session-option-${m}`}
-              >
-                {m}m
-              </button>
-            ))}
-          </div>
-
-          {/* Per-question timer selector */}
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Timer className="w-3 h-3 opacity-60" />
-            {TIMER_OPTIONS.map(d => (
-              <button
-                key={d}
-                onClick={() => handleTimerDurationChange(d)}
-                className={`px-2 py-0.5 rounded-md font-medium transition-colors ${timerDuration === d ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                data-testid={`timer-option-${d}`}
-              >
-                {d === 0 ? "Off" : `${d}s`}
-              </button>
-            ))}
-          </div>
-
           {speechEnabled && (
             <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
               <input
@@ -579,11 +535,6 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
           {/* Input area */}
           <div className="chat-input-area">
             <div className="max-w-3xl mx-auto relative flex items-end gap-3">
-              {isTimerActive && timerDuration > 0 && (
-                <div className={`timer ${timeLeft <= 5 ? "warning" : ""}`}>
-                  ⏳ {timeLeft}s
-                </div>
-              )}
               <Textarea 
                 value={input}
                 onChange={(e) => setInput(e.target.value)}

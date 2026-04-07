@@ -1,54 +1,44 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { Brain, History, User } from "lucide-react";
+import { Brain, History, UserCircle, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
 
   return (
-    <div className="min-h-[100dvh] flex flex-col md:flex-row bg-background">
+    <div className="min-h-[100dvh] flex flex-col md:flex-row bg-[#0d0f14]">
       {/* Sidebar Navigation */}
-      <aside className="w-full md:w-64 border-b md:border-b-0 md:border-r border-border bg-card flex flex-col">
-        <div className="p-6">
-          <div className="flex items-center gap-3 text-primary font-serif font-bold text-xl">
-            <div className="bg-primary text-primary-foreground p-2 rounded-lg">
-              <Brain className="w-5 h-5" />
+      <aside className="w-full md:w-56 border-b md:border-b-0 md:border-r border-zinc-800/60 bg-zinc-900/80 flex flex-col shrink-0">
+        <div className="px-5 py-5 border-b border-zinc-800/60">
+          <div className="flex items-center gap-2.5">
+            <div className="bg-indigo-600 p-2 rounded-lg">
+              <Brain className="w-4 h-4 text-white" />
             </div>
-            Coach
+            <span className="font-bold text-white text-base tracking-tight">Interview Coach</span>
           </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            A quiet space to practice.
-          </p>
         </div>
 
-        <nav className="flex-1 px-4 pb-4 flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-visible">
-          <Link
-            href="/"
-            className={cn(
-              "flex items-center gap-3 px-3 py-2 rounded-md transition-colors whitespace-nowrap md:whitespace-normal",
-              location === "/" 
-                ? "bg-primary text-primary-foreground font-medium" 
-                : "text-foreground hover:bg-secondary"
-            )}
-            data-testid="nav-home"
-          >
-            <User className="w-4 h-4" />
-            Roles
-          </Link>
-          <Link
-            href="/history"
-            className={cn(
-              "flex items-center gap-3 px-3 py-2 rounded-md transition-colors whitespace-nowrap md:whitespace-normal",
-              location === "/history" 
-                ? "bg-primary text-primary-foreground font-medium" 
-                : "text-foreground hover:bg-secondary"
-            )}
-            data-testid="nav-history"
-          >
-            <History className="w-4 h-4" />
-            Past Sessions
-          </Link>
+        <nav className="flex-1 px-3 py-4 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-visible">
+          {[
+            { href: "/profile", label: "Profile", icon: UserCircle },
+            { href: "/", label: "Challenges", icon: Home },
+            { href: "/history", label: "Past Sessions", icon: History },
+          ].map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors whitespace-nowrap md:whitespace-normal",
+                location === href
+                  ? "bg-indigo-600/20 text-indigo-300 font-medium"
+                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+              )}
+            >
+              <Icon className="w-4 h-4 shrink-0" />
+              {label}
+            </Link>
+          ))}
         </nav>
       </aside>
 

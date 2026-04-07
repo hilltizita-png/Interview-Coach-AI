@@ -446,7 +446,7 @@ ${(data.readinessImprovements as string[]).map(a => `• ${a}`).join("\n")}`;
         .zoom-control-bar {
           animation: zoom-bar-in 0.35s ease both;
           position: absolute;
-          bottom: 24px;
+          top: 24px;
           left: 50%;
           transform: translateX(-50%);
           display: flex;
@@ -460,6 +460,48 @@ ${(data.readinessImprovements as string[]).map(a => `• ${a}`).join("\n")}`;
           z-index: 50;
           box-shadow: 0 8px 40px rgba(0,0,0,0.6);
           white-space: nowrap;
+        }
+        .zoom-chat-fab {
+          position: absolute;
+          bottom: 28px;
+          right: 28px;
+          z-index: 51;
+          width: 52px;
+          height: 52px;
+          border-radius: 50%;
+          background: rgba(10,18,32,0.88);
+          backdrop-filter: blur(14px);
+          border: 1px solid rgba(56,189,248,0.35);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: background 0.15s, transform 0.15s, border-color 0.15s;
+          box-shadow: 0 4px 24px rgba(0,0,0,0.55);
+        }
+        .zoom-chat-fab:hover {
+          background: rgba(20,38,65,0.95);
+          transform: scale(1.08);
+          border-color: rgba(56,189,248,0.65);
+        }
+        .zoom-chat-fab.active {
+          background: rgba(56,189,248,0.20);
+          border-color: rgba(56,189,248,0.55);
+        }
+        .zoom-chat-fab-badge {
+          position: absolute;
+          top: -4px;
+          right: -4px;
+          background: #38bdf8;
+          color: #0a1220;
+          border-radius: 50%;
+          width: 18px;
+          height: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 10px;
+          font-weight: 700;
         }
         .zoom-chat-panel {
           position: absolute;
@@ -486,40 +528,6 @@ ${(data.readinessImprovements as string[]).map(a => `• ${a}`).join("\n")}`;
           transform: translateX(100%);
           opacity: 0;
           pointer-events: none;
-        }
-        .zoom-chat-tab {
-          position: absolute;
-          top: 50%;
-          right: 0;
-          transform: translateY(-50%);
-          z-index: 41;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 6px;
-          background: rgba(10,18,32,0.88);
-          backdrop-filter: blur(12px);
-          border: 1px solid rgba(255,255,255,0.12);
-          border-right: none;
-          border-radius: 12px 0 0 12px;
-          padding: 14px 10px;
-          cursor: pointer;
-          transition: background 0.15s, transform 0.15s;
-          box-shadow: -4px 0 20px rgba(0,0,0,0.4);
-        }
-        .zoom-chat-tab:hover {
-          background: rgba(20,35,60,0.95);
-          transform: translateY(-50%) translateX(-2px);
-        }
-        .zoom-chat-tab-label {
-          writing-mode: vertical-rl;
-          text-orientation: mixed;
-          transform: rotate(180deg);
-          color: rgba(255,255,255,0.75);
-          font-size: 11px;
-          font-weight: 600;
-          letter-spacing: 0.08em;
-          white-space: nowrap;
         }
         .zoom-status-badge {
           position: absolute;
@@ -647,11 +655,11 @@ ${(data.readinessImprovements as string[]).map(a => `• ${a}`).join("\n")}`;
         )}
       </div>
 
-      {/* Avatar status overlay badge (top center, subtle) */}
+      {/* Avatar status overlay badge (below control bar) */}
       {(isStreaming || isSpeaking || isListening) && (
         <div style={{
           position: "absolute",
-          top: 20,
+          top: 86,
           left: "50%",
           transform: "translateX(-50%)",
           zIndex: 30,
@@ -670,22 +678,22 @@ ${(data.readinessImprovements as string[]).map(a => `• ${a}`).join("\n")}`;
         </div>
       )}
 
-      {/* Minimized chat tab — visible when panel is minimized */}
-      {!chatExpanded && (
-        <div className="zoom-chat-tab" onClick={expandChat} data-testid="chat-tab-minimized" title="Open chat">
-          <MessageSquare style={{ width: 18, height: 18, color: "#38bdf8" }} />
-          <span className="zoom-chat-tab-label">Interview Chat</span>
-          {localMessages.length > 0 && (
-            <span style={{
-              background: "#38bdf8", color: "#0a1220", borderRadius: "50%",
-              width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 10, fontWeight: 700, flexShrink: 0,
-            }}>
-              {localMessages.length}
-            </span>
-          )}
-        </div>
-      )}
+      {/* Chat FAB — bottom right, always visible */}
+      <button
+        className={`zoom-chat-fab ${chatExpanded ? "active" : ""}`}
+        onClick={toggleChat}
+        data-testid="button-toggle-chat"
+        title={chatExpanded ? "Close chat" : "Open chat"}
+        style={{ right: chatExpanded ? 388 : 28 }}
+      >
+        {chatExpanded
+          ? <X style={{ width: 22, height: 22, color: "#38bdf8" }} />
+          : <MessageSquare style={{ width: 22, height: 22, color: "#38bdf8" }} />
+        }
+        {!chatExpanded && localMessages.length > 0 && (
+          <span className="zoom-chat-fab-badge">{localMessages.length}</span>
+        )}
+      </button>
 
       {/* Chat panel — always mounted, slides with CSS transition */}
       <div
@@ -978,16 +986,6 @@ ${(data.readinessImprovements as string[]).map(a => `• ${a}`).join("\n")}`;
             ? <Volume2 style={{ width: 20, height: 20 }} />
             : <VolumeX style={{ width: 20, height: 20, color: "rgba(255,255,255,0.4)" }} />
           }
-        </button>
-
-        {/* Chat toggle */}
-        <button
-          className={`zoom-ctrl-btn ${chatExpanded ? "active" : ""}`}
-          onClick={toggleChat}
-          data-testid="button-toggle-chat"
-          title={chatExpanded ? "Minimize chat" : "Open chat"}
-        >
-          <MessageSquare style={{ width: 20, height: 20 }} />
         </button>
 
         <div className="zoom-divider" />

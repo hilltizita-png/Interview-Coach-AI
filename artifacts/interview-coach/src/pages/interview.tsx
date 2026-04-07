@@ -506,114 +506,125 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
         </div>
       </header>
 
-      {/* Interview Screen */}
+      {/* Interview Screen — Zoom/Teams style */}
       <div className="interview-screen">
-        <TalkingAvatar isSpeaking={isSpeaking} feedback={avatarFeedback} />
 
-        <div className="chat-area">
-          <div className="max-w-3xl mx-auto space-y-8 pb-4">
+        {/* Left: Avatar panel */}
+        <div className="avatar-panel">
+          <TalkingAvatar isSpeaking={isSpeaking} feedback={avatarFeedback} />
+          <p className="avatar-status">
+            {isSpeaking ? "Answering…" : isStreaming ? "Thinking…" : "Listening"}
+          </p>
+        </div>
 
-          {localMessages.length === 0 && !isStreaming && (
-            <div className="text-center text-muted-foreground my-12 animate-in fade-in zoom-in duration-500">
-              <Bot className="w-12 h-12 mx-auto mb-4 text-primary/40" />
-              <p className="text-lg">Your coach is ready.</p>
-              <p className="text-sm">Introduce yourself to start the interview.</p>
-            </div>
-          )}
+        {/* Right: Chat + input */}
+        <div className="chat-column">
+          <div className="chat-area">
+            <div className="max-w-3xl mx-auto space-y-8 pb-4">
 
-          {localMessages.map((msg, i) => (
-            <div 
-              key={msg.id} 
-              className={`flex gap-4 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-              data-testid={`msg-${msg.role}-${i}`}
-            >
-              {msg.role === "assistant" && (
+            {localMessages.length === 0 && !isStreaming && (
+              <div className="text-center text-muted-foreground my-12 animate-in fade-in zoom-in duration-500">
+                <Bot className="w-12 h-12 mx-auto mb-4 text-primary/40" />
+                <p className="text-lg">Your coach is ready.</p>
+                <p className="text-sm">Introduce yourself to start the interview.</p>
+              </div>
+            )}
+
+            {localMessages.map((msg, i) => (
+              <div 
+                key={msg.id} 
+                className={`flex gap-4 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                data-testid={`msg-${msg.role}-${i}`}
+              >
+                {msg.role === "assistant" && (
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-sm text-primary-foreground">
+                    <Bot className="w-5 h-5" />
+                  </div>
+                )}
+                <div 
+                  className={`px-5 py-4 rounded-2xl max-w-[85%] text-base leading-relaxed shadow-sm ${
+                    msg.role === "user" 
+                      ? "bg-primary text-primary-foreground rounded-tr-sm" 
+                      : "bg-card text-card-foreground border border-border rounded-tl-sm"
+                  }`}
+                >
+                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                </div>
+              </div>
+            ))}
+
+            {isStreaming && (
+              <div className="flex gap-4 justify-start animate-in fade-in">
                 <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-sm text-primary-foreground">
                   <Bot className="w-5 h-5" />
                 </div>
-              )}
-              <div 
-                className={`px-5 py-4 rounded-2xl max-w-[85%] text-base leading-relaxed shadow-sm ${
-                  msg.role === "user" 
-                    ? "bg-primary text-primary-foreground rounded-tr-sm" 
-                    : "bg-card text-card-foreground border border-border rounded-tl-sm"
-                }`}
-              >
-                <div className="whitespace-pre-wrap">{msg.content}</div>
+                <div className="px-5 py-4 rounded-2xl max-w-[85%] bg-card text-card-foreground border border-border rounded-tl-sm shadow-sm min-h-[56px] flex items-center">
+                  {streamingContent ? (
+                    <div className="whitespace-pre-wrap leading-relaxed">{streamingContent}</div>
+                  ) : (
+                    <div className="flex gap-1 items-center h-full px-2" data-testid="typing-indicator">
+                      <div className="w-2 h-2 rounded-full bg-primary/40 typing-dot"></div>
+                      <div className="w-2 h-2 rounded-full bg-primary/40 typing-dot"></div>
+                      <div className="w-2 h-2 rounded-full bg-primary/40 typing-dot"></div>
+                    </div>
+                  )}
+                </div>
               </div>
+            )}
+            
+            <div ref={messagesEndRef} />
             </div>
-          ))}
+          </div>
 
-          {isStreaming && (
-            <div className="flex gap-4 justify-start animate-in fade-in">
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-sm text-primary-foreground">
-                <Bot className="w-5 h-5" />
-              </div>
-              <div className="px-5 py-4 rounded-2xl max-w-[85%] bg-card text-card-foreground border border-border rounded-tl-sm shadow-sm min-h-[56px] flex items-center">
-                {streamingContent ? (
-                  <div className="whitespace-pre-wrap leading-relaxed">{streamingContent}</div>
-                ) : (
-                  <div className="flex gap-1 items-center h-full px-2" data-testid="typing-indicator">
-                    <div className="w-2 h-2 rounded-full bg-primary/40 typing-dot"></div>
-                    <div className="w-2 h-2 rounded-full bg-primary/40 typing-dot"></div>
-                    <div className="w-2 h-2 rounded-full bg-primary/40 typing-dot"></div>
-                  </div>
-                )}
-              </div>
+          {/* Input area */}
+          <div className="chat-input-area">
+            <div className="max-w-3xl mx-auto relative flex items-end gap-3">
+              {isTimerActive && timerDuration > 0 && (
+                <div className={`timer ${timeLeft <= 5 ? "warning" : ""}`}>
+                  ⏳ {timeLeft}s
+                </div>
+              )}
+              <Textarea 
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  isStreaming ? "Wait for the coach to finish..."
+                  : isListening ? "Listening..."
+                  : "Type or speak your response… (Enter to send)"
+                }
+                className="min-h-[60px] max-h-[200px] resize-none pr-24 rounded-xl border-input bg-background shadow-sm focus-visible:ring-1 focus-visible:ring-primary text-base"
+                disabled={isStreaming || isListening}
+                data-testid="input-chat"
+                rows={2}
+              />
+              <Button
+                size="icon"
+                variant="ghost"
+                className={`absolute right-14 bottom-3 rounded-lg w-10 h-10 ${isListening ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
+                onClick={handleMicClick}
+                disabled={isStreaming}
+                data-testid="button-mic"
+                title={isListening ? "Listening..." : "Speak your answer"}
+              >
+                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </Button>
+              <Button 
+                size="icon" 
+                className="absolute right-3 bottom-3 rounded-lg w-10 h-10 shadow-sm"
+                onClick={handleSendMessage}
+                disabled={!input.trim() || isStreaming}
+                data-testid="button-send"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
             </div>
-          )}
-          
-          <div ref={messagesEndRef} />
+            <div className="max-w-3xl mx-auto mt-2 text-center">
+              <span className="text-xs text-muted-foreground">Practice space — say anything here.</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Input Area */}
-      <div className="p-4 md:p-6 bg-card/80 backdrop-blur-md border-t border-border shrink-0">
-        <div className="max-w-3xl mx-auto relative flex items-end gap-3">
-          {isTimerActive && timerDuration > 0 && (
-            <div className={`timer ${timeLeft <= 5 ? "warning" : ""}`}>
-              ⏳ {timeLeft}s
-            </div>
-          )}
-          <Textarea 
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              isStreaming ? "Wait for the coach to finish..."
-              : isListening ? "Listening..."
-              : "Type or speak your response... (Enter to send)"
-            }
-            className="min-h-[60px] max-h-[200px] resize-none pr-24 rounded-xl border-input bg-background shadow-sm focus-visible:ring-1 focus-visible:ring-primary text-base"
-            disabled={isStreaming || isListening}
-            data-testid="input-chat"
-            rows={2}
-          />
-          <Button
-            size="icon"
-            variant="ghost"
-            className={`absolute right-14 bottom-3 rounded-lg w-10 h-10 ${isListening ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
-            onClick={handleMicClick}
-            disabled={isStreaming}
-            data-testid="button-mic"
-            title={isListening ? "Listening..." : "Speak your answer"}
-          >
-            {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-          </Button>
-          <Button 
-            size="icon" 
-            className="absolute right-3 bottom-3 rounded-lg w-10 h-10 shadow-sm"
-            onClick={handleSendMessage}
-            disabled={!input.trim() || isStreaming}
-            data-testid="button-send"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
-        </div>
-        <div className="max-w-3xl mx-auto mt-2 text-center">
-          <span className="text-xs text-muted-foreground">This is a practice space. You can say anything here.</span>
-        </div>
       </div>
     </div>
   );

@@ -169,14 +169,14 @@ export default function TalkingAvatar({ isSpeaking, feedback }: TalkingAvatarPro
   const borderColor = isGood
     ? "#22c55e"
     : isSpeaking
-    ? "hsl(190,85%,25%)"
-    : "hsl(40,20%,80%)";
-  const glowSize = isSpeaking || isGood ? "6px" : "0px";
+    ? "#0ea5e9"
+    : "#334155";
   const glowColor = isGood
-    ? "rgba(34,197,94,0.30)"
+    ? "rgba(34,197,94,0.35)"
     : isSpeaking
-    ? "rgba(14,116,144,0.22)"
+    ? "rgba(14,165,233,0.30)"
     : "transparent";
+  const glowSpread = isSpeaking || isGood ? "8px" : "0px";
 
   const hairColor = "#3d2b1f";
   const suitColor = "#1c3d5a";
@@ -186,24 +186,19 @@ export default function TalkingAvatar({ isSpeaking, feedback }: TalkingAvatarPro
   const lipColor = isGood ? "#d06060" : "#b85050";
 
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "center",
-        marginBottom: 20,
-      }}
-    >
+    <div style={{ position: "relative", width: "100%", maxWidth: 320 }}>
+      {/* Video tile */}
       <div
         style={{
-          width: 160,
-          height: 160,
-          borderRadius: "50%",
+          position: "relative",
+          width: "100%",
+          aspectRatio: "3 / 4",
+          borderRadius: 14,
           overflow: "hidden",
-          border: `3px solid ${borderColor}`,
-          boxShadow: `0 0 0 ${glowSize} ${glowColor}, 0 4px 16px rgba(0,0,0,0.12)`,
-          transition: "border-color 0.3s, box-shadow 0.4s, transform 0.3s",
-          transform: `scale(${isGood ? 1.05 : 1}) translateY(${isGood ? -2 : 0}px)`,
-          flexShrink: 0,
+          border: `2px solid ${borderColor}`,
+          boxShadow: `0 0 0 ${glowSpread} ${glowColor}, 0 8px 40px rgba(0,0,0,0.5)`,
+          transition: "border-color 0.3s, box-shadow 0.4s",
+          background: "#0d1b2a",
         }}
       >
         <svg
@@ -213,11 +208,11 @@ export default function TalkingAvatar({ isSpeaking, feedback }: TalkingAvatarPro
         >
           <defs>
             <clipPath id="ta-clip">
-              <circle cx="80" cy="80" r="80" />
+              <rect width="160" height="200" rx="0" />
             </clipPath>
             <radialGradient id="ta-bg" cx="50%" cy="30%" r="80%">
-              <stop offset="0%" stopColor="#dff0fa" />
-              <stop offset="100%" stopColor="#9abfdb" />
+              <stop offset="0%" stopColor="#1a2f4a" />
+              <stop offset="100%" stopColor="#0a1625" />
             </radialGradient>
             <radialGradient id="ta-skin" cx="48%" cy="42%" r="55%">
               <stop offset="0%" stopColor="#fde0be" />
@@ -227,6 +222,10 @@ export default function TalkingAvatar({ isSpeaking, feedback }: TalkingAvatarPro
               <stop offset="0%" stopColor="white" stopOpacity="0.85" />
               <stop offset="100%" stopColor="white" stopOpacity="0" />
             </radialGradient>
+            <linearGradient id="ta-nameplate" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="transparent" />
+              <stop offset="100%" stopColor="rgba(0,0,0,0.75)" />
+            </linearGradient>
           </defs>
 
           <g clipPath="url(#ta-clip)">
@@ -235,7 +234,7 @@ export default function TalkingAvatar({ isSpeaking, feedback }: TalkingAvatarPro
             <g transform={`translate(80, ${80 + breathY}) scale(${breathScale}) translate(-80, -80)`}>
               <g transform={`rotate(${nodAngle}, 80, 105)`} style={{ transition: "transform 0.18s ease-out" }}>
 
-                <ellipse cx="80" cy="150" rx="52" ry="7" fill="rgba(0,0,0,0.07)" />
+                <ellipse cx="80" cy="150" rx="52" ry="7" fill="rgba(0,0,0,0.18)" />
 
                 <rect x="18" y="127" width="124" height="82" rx="6" fill={suitColor} />
                 <polygon points="67,127 80,156 93,127 80,134" fill={shirtColor} />
@@ -307,9 +306,58 @@ export default function TalkingAvatar({ isSpeaking, feedback }: TalkingAvatarPro
 
               </g>
             </g>
+
+            {/* Bottom name-plate gradient */}
+            <rect x="0" y="155" width="160" height="45" fill="url(#ta-nameplate)" />
           </g>
         </svg>
+
+        {/* Name plate overlay */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            padding: "10px 12px 10px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <span style={{ color: "white", fontSize: 13, fontWeight: 600, letterSpacing: "0.01em", textShadow: "0 1px 4px rgba(0,0,0,0.6)" }}>
+            Sarah · AI Interviewer
+          </span>
+          {isSpeaking && (
+            <span style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              color: "#38bdf8",
+              fontSize: 11,
+              fontWeight: 600,
+            }}>
+              <span style={{
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                background: "#38bdf8",
+                animation: "avatar-speaking-dot 0.9s ease-in-out infinite",
+                display: "inline-block",
+              }} />
+              Speaking
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* Speaking animation keyframes injected once */}
+      <style>{`
+        @keyframes avatar-speaking-dot {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.4; transform: scale(0.7); }
+        }
+      `}</style>
     </div>
   );
 }

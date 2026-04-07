@@ -11,15 +11,42 @@ import {
   Plus,
   ChevronDown,
   ChevronUp,
-  Upload,
   Check,
   Pencil,
+  Loader2,
+  FileUp,
 } from "lucide-react";
+
+async function extractTextFromPdf(file: File): Promise<string> {
+  const pdfjsLib = await import("pdfjs-dist");
+  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+    "pdfjs-dist/build/pdf.worker.min.mjs",
+    import.meta.url
+  ).toString();
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pages: string[] = [];
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items
+      .map((item) => ("str" in item ? item.str : ""))
+      .join(" ");
+    pages.push(pageText);
+  }
+
+  return pages.join("\n\n").replace(/\s{3,}/g, "  ").trim();
+}
 
 function ResumeSection() {
   const { resume, setResume } = useProfile();
   const [draft, setDraft] = useState(resume);
   const [saved, setSaved] = useState(false);
+  const [parsing, setParsing] = useState(false);
+  const [parseError, setParseError] = useState("");
+  const [uploadedFileName, setUploadedFileName] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleSave = () => {
@@ -28,16 +55,35 @@ function ResumeSection() {
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string;
-      setDraft(text);
-    };
-    reader.readAsText(file);
     e.target.value = "";
+    setParseError("");
+
+    if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
+      setParsing(true);
+      try {
+        const text = await extractTextFromPdf(file);
+        if (!text.trim()) {
+          setParseError("No readable text found in this PDF. Try a text-based PDF rather than a scanned image.");
+        } else {
+          setDraft(text);
+          setUploadedFileName(file.name);
+        }
+      } catch {
+        setParseError("Could not read this PDF. Make sure it's a standard PDF with selectable text.");
+      } finally {
+        setParsing(false);
+      }
+    } else {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setDraft(ev.target?.result as string);
+        setUploadedFileName(file.name);
+      };
+      reader.readAsText(file);
+    }
   };
 
   return (
@@ -48,14 +94,55 @@ function ResumeSection() {
         </div>
         <div>
           <h2 className="font-semibold text-white">Resume</h2>
-          <p className="text-xs text-zinc-500">Paste your resume or upload a text file. Used to tailor interview questions.</p>
+          <p className="text-xs text-zinc-500">Paste your resume, or upload a PDF or text file. Used to tailor interview questions.</p>
         </div>
       </div>
 
+      {/* Drop zone / upload area */}
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        disabled={parsing}
+        className="w-full border-2 border-dashed border-zinc-700/60 rounded-xl py-5 px-4 flex flex-col items-center gap-2 hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 group"
+      >
+        {parsing ? (
+          <>
+            <Loader2 className="w-7 h-7 text-indigo-400 animate-spin" />
+            <span className="text-sm text-zinc-400">Reading PDF…</span>
+          </>
+        ) : (
+          <>
+            <FileUp className="w-7 h-7 text-zinc-500 group-hover:text-indigo-400 transition-colors" />
+            <span className="text-sm font-medium text-zinc-300">Upload PDF or text file</span>
+            <span className="text-xs text-zinc-600">.pdf · .txt · .md</span>
+          </>
+        )}
+      </button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
+        className="hidden"
+        onChange={handleFileUpload}
+      />
+
+      {uploadedFileName && !parsing && (
+        <p className="text-xs text-indigo-400 flex items-center gap-1.5">
+          <Check className="w-3.5 h-3.5" />
+          Loaded from <span className="font-medium">{uploadedFileName}</span> — review and save below
+        </p>
+      )}
+
+      {parseError && (
+        <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+          {parseError}
+        </p>
+      )}
+
       <Textarea
         value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        placeholder="Paste your resume text here…"
+        onChange={(e) => { setDraft(e.target.value); setUploadedFileName(""); }}
+        placeholder="Or paste your resume text directly here…"
         className="min-h-[200px] bg-zinc-800/60 border-zinc-700/60 text-white placeholder:text-zinc-600 resize-y text-sm"
       />
 
@@ -63,20 +150,11 @@ function ResumeSection() {
         <Button
           onClick={handleSave}
           className="bg-indigo-600 hover:bg-indigo-500 text-white gap-2"
-          disabled={draft === resume}
+          disabled={draft === resume || parsing}
         >
           {saved ? <Check className="w-4 h-4" /> : null}
           {saved ? "Saved" : "Save Resume"}
         </Button>
-        <Button
-          variant="outline"
-          className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 gap-2"
-          onClick={() => fileRef.current?.click()}
-        >
-          <Upload className="w-4 h-4" />
-          Upload .txt file
-        </Button>
-        <input ref={fileRef} type="file" accept=".txt,.md" className="hidden" onChange={handleFileUpload} />
         {resume && (
           <span className="text-xs text-emerald-400 flex items-center gap-1">
             <Check className="w-3 h-3" /> Resume saved

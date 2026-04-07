@@ -446,9 +446,9 @@ ${(data.readinessImprovements as string[]).map(a => `• ${a}`).join("\n")}`;
         .zoom-control-bar {
           animation: zoom-bar-in 0.35s ease both;
           position: absolute;
-          top: 24px;
-          left: 50%;
-          transform: translateX(-50%);
+          bottom: 24px;
+          left: 24px;
+          transform: none;
           display: flex;
           align-items: center;
           gap: 12px;
@@ -655,11 +655,11 @@ ${(data.readinessImprovements as string[]).map(a => `• ${a}`).join("\n")}`;
         )}
       </div>
 
-      {/* Avatar status overlay badge (below control bar) */}
+      {/* Avatar status overlay badge (top center) */}
       {(isStreaming || isSpeaking || isListening) && (
         <div style={{
           position: "absolute",
-          top: 86,
+          top: 20,
           left: "50%",
           transform: "translateX(-50%)",
           zIndex: 30,

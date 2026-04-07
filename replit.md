@@ -1,105 +1,107 @@
-# Workspace
+# AI Interview Coach — Workspace Notes
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+pnpm monorepo. React + Vite frontend, Express 5 API backend, PostgreSQL + Drizzle ORM, OpenAI via Replit AI Integrations.
 
 ## Stack
 
-- **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
-- **Package manager**: pnpm
-- **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
-- **AI**: OpenAI via Replit AI Integrations (`gpt-5.2`)
+- **Monorepo**: pnpm workspaces
+- **Node.js**: 24
+- **TypeScript**: 5.9
+- **Frontend**: React 19, Vite 7, Tailwind CSS 4, Wouter, TanStack Query v5
+- **Backend**: Express 5 with esbuild bundling
+- **Database**: PostgreSQL + Drizzle ORM + Zod validation
+- **AI**: OpenAI GPT-5.2 (chat/feedback), GPT-4o-mini (analysis) via Replit AI Integrations
+- **API codegen**: Orval (OpenAPI → React Query hooks + Zod types)
 
 ## Structure
 
-```text
-artifacts-monorepo/
-├── artifacts/              # Deployable applications
-│   ├── api-server/         # Express API server
-│   └── interview-coach/    # React + Vite frontend (AI Interview Coach)
-├── lib/                    # Shared libraries
-│   ├── api-spec/           # OpenAPI spec + Orval codegen config
-│   ├── api-client-react/   # Generated React Query hooks
-│   ├── api-zod/            # Generated Zod schemas from OpenAPI
-│   ├── db/                 # Drizzle ORM schema + DB connection
-│   ├── integrations-openai-ai-server/  # OpenAI server-side client
-│   └── integrations-openai-ai-react/   # OpenAI React hooks
-├── scripts/                # Utility scripts
-├── pnpm-workspace.yaml
-├── tsconfig.base.json
-├── tsconfig.json
-└── package.json
+```
+artifacts/
+  api-server/           Express 5 REST + SSE API (port 8080)
+  interview-coach/      React + Vite frontend
+lib/
+  api-spec/             openapi.yaml (source of truth — run codegen after changes)
+  api-client-react/     GENERATED React Query hooks — do not edit
+  api-zod/              GENERATED Zod schemas — do not edit
+  db/                   Drizzle schema: conversations, messages, interview_sessions
+  integrations-openai-ai-server/
+  integrations-openai-ai-react/
+docs/
+  SETUP.md              Full local setup guide
+  API.md                Full API reference
 ```
 
-## AI Interview Coach App
+## Key Files
 
-A React web app where users select a job role and chat with an AI interviewer.
+| File | Purpose |
+|---|---|
+| `artifacts/api-server/src/routes/interview.ts` | All interview API endpoints |
+| `artifacts/interview-coach/src/pages/interview.tsx` | Zoom-style interview screen |
+| `artifacts/interview-coach/src/pages/home.tsx` | "Pass the Filter" dashboard |
+| `artifacts/interview-coach/src/pages/feedback.tsx` | Post-session feedback + score |
+| `artifacts/interview-coach/src/components/TalkingAvatar.tsx` | Animated SVG avatar "Sarah" |
+| `lib/db/src/schema.ts` | Drizzle table definitions |
+| `lib/api-spec/openapi.yaml` | OpenAPI spec (source of truth) |
 
-### Features
-- Role selection from 12 job roles across 5 categories (Engineering, Data, Product, Design, Business)
-- Real-time streaming AI interview chat (SSE)
-- AI-powered feedback after each session (score, strengths, areas to improve)
-- Interview history
+## Interview Screen Layout
 
-### Database Tables
-- `conversations` — OpenAI conversation threads
-- `messages` — Individual messages per conversation  
-- `interview_sessions` — Links job role to a conversation
+Zoom/Teams-style side-by-side:
+- **Left panel (`.avatar-panel`, dark `#0b1622`)**: `TalkingAvatar` SVG — 3:4 video tile, 300px wide
+- **Right column (`.chat-column`)**: scrollable messages + input at bottom
+- **Mobile**: stacks vertically at `< 640px`
 
-### API Routes
-- `GET /api/interview/roles` — List available job roles (static)
-- `GET/POST /api/interview/sessions` — List / create interview sessions
-- `GET/DELETE /api/interview/sessions/:id` — Get / delete session with messages
-- `POST /api/interview/sessions/:id/chat` — SSE streaming AI chat
-- `GET /api/interview/sessions/:id/feedback` — Get AI feedback for session
+## TalkingAvatar Behaviour
 
-### Environment Variables
-- `DATABASE_URL` — PostgreSQL connection string
-- `AI_INTEGRATIONS_OPENAI_BASE_URL` — Replit AI Integrations proxy URL
-- `AI_INTEGRATIONS_OPENAI_API_KEY` — Replit AI Integrations API key
+- Blinking eyes: random 2.5–6.5s intervals
+- Breathing: sine-wave vertical bob, 50ms ticks
+- Head nodding: when `isSpeaking=true`, subtle ±4deg rotation
+- Mouth animation: CSS interval loop (185ms) + Web Speech API `onboundary` events
+- Speaking glow: blue border + spread when speaking; green when `feedback="good"`
+- Name plate: "Sarah · AI Interviewer" + pulsing blue "Speaking" dot
 
-## TypeScript & Composite Projects
+## TTS / STT
 
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all lib packages as project references.
+- `speak()` — prefers "Google US English", rate 1.0, dispatches `avatar:boundary` on word events
+- `speakAttenborough()` — prefers "Alex", rate 0.9, same boundary dispatch
+- Narration checkbox in header toggles between the two voices
+- STT via Web Speech API `startListening()` helper
 
-## Root Scripts
+## Timers
 
-- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages
-- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
+- Per-question: 15s / 30s / 60s / Off — starts after user's first answer; pauses while streaming
+- Session: 30 min / 1 hr — countdown in header; triggers feedback on expiry
 
-## Packages
+## AI Models
 
-### `artifacts/api-server` (`@workspace/api-server`)
+- Chat + feedback: `gpt-5.2`
+- Job analysis (`/analyze-job`) + role research (`/research-role`): `gpt-4o-mini`
 
-Express 5 API server. Routes live in `src/routes/`.
+## Codegen Workflow
 
-### `artifacts/interview-coach` (`@workspace/interview-coach`)
+1. Edit `lib/api-spec/openapi.yaml`
+2. `pnpm --filter @workspace/api-spec run codegen`
+3. `pnpm run -r build`
 
-React + Vite frontend for the AI Interview Coach app.
+## Database Migrations
 
-### `lib/db` (`@workspace/db`)
+```bash
+cd lib/db && pnpm run push
+```
 
-Database layer using Drizzle ORM with PostgreSQL.
+Never change primary key ID column types (serial ↔ varchar) — destructive.
 
-- `src/schema/conversations.ts` — OpenAI conversations
-- `src/schema/messages.ts` — OpenAI messages
-- `src/schema/interviewSessions.ts` — Interview sessions
+## Environment Secrets (Replit)
 
-### `lib/api-spec` (`@workspace/api-spec`)
+- `DATABASE_URL` — auto-provisioned by PostgreSQL integration
+- `SESSION_SECRET` — set manually in Replit Secrets
+- `AI_INTEGRATIONS_OPENAI_API_KEY` — injected by Replit AI Integrations
+- `AI_INTEGRATIONS_OPENAI_BASE_URL` — injected by Replit AI Integrations
 
-OpenAPI spec and Orval codegen config. Run codegen: `pnpm --filter @workspace/api-spec run codegen`
+## Documentation
 
-### `lib/integrations-openai-ai-server` (`@workspace/integrations-openai-ai-server`)
-
-Server-side OpenAI client via Replit AI Integrations proxy.
-
-### `lib/integrations-openai-ai-react` (`@workspace/integrations-openai-ai-react`)
-
-React hooks for OpenAI voice/audio features.
+- `README.md` — project overview, quick start, feature list
+- `docs/SETUP.md` — local setup step-by-step
+- `docs/API.md` — full API reference with request/response examples
+- `LICENSE` — MIT

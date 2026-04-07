@@ -1,3 +1,31 @@
+/**
+ * interview.tsx — Live interview session screen
+ *
+ * Route: /interview/:sessionId?mode=<challenge-mode>
+ *
+ * This is the main interview UI. It renders:
+ *   • TalkingAvatar  — the animated SVG avatar "Sarah" (full-screen left/centre)
+ *   • Chat panel     — collapsible right-side chat bubble list
+ *   • Control bar    — bottom-left pill: timer, mic, TTS toggle, feedback, end
+ *
+ * Key features:
+ *   • Streaming AI replies via SSE (see streamInterviewReply in ai.ts)
+ *   • Web Speech API: TTS (speak/speakAttenborough) and STT (startListening)
+ *   • Challenge modes (MODE_CONFIG): Quick Round, Full Session, Answer Lab,
+ *     Boss Round, General — each with their own time limits and question caps
+ *   • Session end flow: closing message → 1800ms wait → loadFeedback()
+ *     → auto-redirect to /feedback/:id after 4 s
+ *
+ * State overview:
+ *   localMessages     — the in-memory conversation (initialised from the DB record)
+ *   isStreaming       — true while a reply chunk is being received
+ *   streamingContent  — the in-progress assistant text shown as a live bubble
+ *   totalTimeLeft     — countdown in seconds (0 for untimed modes)
+ *   answersSubmitted  — how many user messages have been sent this session
+ *   sessionEnded      — prevents further input after the session closes
+ *   chatExpanded      — controls the collapsible right chat panel
+ */
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { streamInterviewReply } from "@/services/ai";
 import { useRoute, useLocation, useSearch, Link } from "wouter";
@@ -12,6 +40,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
 import TalkingAvatar from "@/components/TalkingAvatar";
 
+// Extend the global Window type to include webkit-prefixed speech recognition.
 declare global {
   interface Window {
     SpeechRecognition: typeof SpeechRecognition;
@@ -19,16 +48,25 @@ declare global {
   }
 }
 
+/**
+ * speak — Sarah's normal voice (Google US English or best available English).
+ *
+ * Cancels any in-progress speech, picks a voice, sets up callbacks, and
+ * dispatches "avatar:boundary" on every word boundary so TalkingAvatar can
+ * sync the mouth animation to actual speech timing.
+ */
 function speak(text: string, onStart?: () => void, onEnd?: () => void) {
   if (!text) return;
   window.speechSynthesis.cancel();
 
   const voices = window.speechSynthesis.getVoices();
+  // Voices may not be loaded yet — retry once they are.
   if (!voices.length) {
     window.speechSynthesis.onvoiceschanged = () => speak(text, onStart, onEnd);
     return;
   }
 
+  // Prefer "Google US English" for clarity; fall back to any English voice.
   const preferredVoice = voices.find(v => v.name.includes("Google US English"));
   const englishVoice = voices.find(v => v.lang.startsWith("en"));
   const voice = preferredVoice || englishVoice || voices[0];
@@ -39,6 +77,8 @@ function speak(text: string, onStart?: () => void, onEnd?: () => void) {
   utterance.pitch = 1;
   if (onStart) utterance.onstart = onStart;
   if (onEnd) utterance.onend = onEnd;
+  // Fire a custom DOM event on each word boundary so TalkingAvatar can flash
+  // the mouth shape. TalkingAvatar listens for "avatar:boundary".
   utterance.onboundary = (e) => {
     if (e.name === "word") {
       window.dispatchEvent(new CustomEvent("avatar:boundary"));
@@ -47,6 +87,12 @@ function speak(text: string, onStart?: () => void, onEnd?: () => void) {
   window.speechSynthesis.speak(utterance);
 }
 
+/**
+ * speakAttenborough — Alternative "narrator" voice (slower rate, "Alex" if available).
+ *
+ * Enabled via the narration toggle in the control bar. Same structure as speak()
+ * but uses a 0.9x rate and prefers the "Alex" macOS voice for a deeper tone.
+ */
 function speakAttenborough(text: string, onStart?: () => void, onEnd?: () => void) {
   if (!text) return;
   window.speechSynthesis.cancel();
@@ -63,7 +109,7 @@ function speakAttenborough(text: string, onStart?: () => void, onEnd?: () => voi
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.voice = voice;
-  utterance.rate = 0.9;
+  utterance.rate = 0.9; // slightly slower for a more authoritative tone
   utterance.pitch = 1;
   if (onStart) utterance.onstart = onStart;
   if (onEnd) utterance.onend = onEnd;
@@ -75,6 +121,13 @@ function speakAttenborough(text: string, onStart?: () => void, onEnd?: () => voi
   window.speechSynthesis.speak(utterance);
 }
 
+/**
+ * startListening — Activates the browser's speech-to-text (STT) for one utterance.
+ *
+ * Uses the Web Speech API SpeechRecognition. Waits for the user to speak, then
+ * calls onResult with the transcript so it can be placed in the chat input.
+ * Falls back to an alert on unsupported browsers (e.g. Firefox without the flag).
+ */
 function startListening(
   onResult: (text: string) => void,
   onStart?: () => void,
@@ -88,7 +141,7 @@ function startListening(
 
   const recognition = new SpeechRecognition();
   recognition.lang = "en-US";
-  recognition.interimResults = false;
+  recognition.interimResults = false; // only return the final transcript
   recognition.maxAlternatives = 1;
 
   recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -98,11 +151,17 @@ function startListening(
 
   recognition.onstart = () => onStart?.();
   recognition.onend = () => onEnd?.();
-  recognition.onerror = () => onEnd?.();
+  recognition.onerror = () => onEnd?.(); // treat errors as "done listening"
 
   recognition.start();
 }
 
+/**
+ * A single message in the local in-memory conversation list.
+ * `isSystem` marks messages inserted by the app itself (closing message,
+ * feedback summary) rather than the user or the AI — they get a different
+ * visual treatment (info-style bubble instead of a chat bubble).
+ */
 interface LocalMessage {
   id: number | string;
   role: "user" | "assistant";
@@ -110,8 +169,24 @@ interface LocalMessage {
   isSystem?: boolean;
 }
 
+/** The four challenge modes plus the default "general" practice mode. */
 type ChallengeMode = "quick-round" | "full-session" | "answer-lab" | "boss-round" | "general";
 
+/**
+ * Per-mode configuration.
+ *
+ * Fields:
+ *   totalMins    — session timer duration in minutes, or null for untimed modes.
+ *   maxQuestions — maximum answers before the session auto-ends, or null for unlimited.
+ *   closingNote  — if true, the AI delivers a warm closing speech when the timer expires
+ *                  (Full Session only).
+ *   label        — short human-readable name shown in the mode badge.
+ *   Icon         — Lucide icon component for the mode badge.
+ *   color / badgeClass — Tailwind colour classes for the badge.
+ *
+ * To add a new challenge mode: add an entry here, add it to ChallengeMode, and
+ * add a matching card to the CHALLENGES array in home.tsx.
+ */
 const MODE_CONFIG: Record<ChallengeMode, {
   totalMins: number | null;
   maxQuestions: number | null;
@@ -121,6 +196,7 @@ const MODE_CONFIG: Record<ChallengeMode, {
   color: string;
   badgeClass: string;
 }> = {
+  //                       time   questions  closing
   "quick-round":  { totalMins: 10,   maxQuestions: 5,    closingNote: false, label: "Quick Round",  Icon: Zap,          color: "text-yellow-400", badgeClass: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30" },
   "full-session": { totalMins: 40,   maxQuestions: null,  closingNote: true,  label: "Full Session", Icon: BookOpen,     color: "text-blue-400",   badgeClass: "bg-blue-500/20 text-blue-300 border-blue-500/30"     },
   "answer-lab":   { totalMins: null, maxQuestions: null,  closingNote: false, label: "Answer Lab",   Icon: FlaskConical, color: "text-purple-400", badgeClass: "bg-purple-500/20 text-purple-300 border-purple-500/30" },

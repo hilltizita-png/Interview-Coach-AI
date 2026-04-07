@@ -1,3 +1,27 @@
+/**
+ * routes/interview.ts — All interview-related API endpoints
+ *
+ * This file registers every route the frontend calls during an interview session.
+ * It is mounted at /api by the Express app in index.ts, so all paths below
+ * are relative to /api (e.g. router.get("/interview/roles") → GET /api/interview/roles).
+ *
+ * Route summary:
+ *   GET  /interview/roles                    → static list of job roles
+ *   GET  /interview/sessions                 → all past sessions (newest first)
+ *   POST /interview/sessions                 → create a session + insert the greeting
+ *   GET  /interview/sessions/:id             → one session with its messages
+ *   DELETE /interview/sessions/:id           → delete session + all messages
+ *   POST /interview/sessions/:id/chat        → SSE: stream an AI reply
+ *   GET  /interview/sessions/:id/feedback    → generate/return AI feedback
+ *   POST /interview/analyze-job              → summarise a job posting (GPT-4o-mini)
+ *   POST /interview/research-role            → research a job title (GPT-4o-mini)
+ *
+ * Database tables used (defined in lib/db/src/schema.ts):
+ *   conversations      — one row per interview session (holds the title)
+ *   messages           — every chat message (role: user | assistant | system)
+ *   interview_sessions — links a conversation to a job role + context
+ */
+
 import { Router, type IRouter } from "express";
 import { eq, asc } from "drizzle-orm";
 import { db, conversations, messages, interviewSessions } from "@workspace/db";
@@ -13,6 +37,11 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 
 const router: IRouter = Router();
 
+/**
+ * Static list of supported job roles.
+ * To add a new role, append an entry here — no other changes needed.
+ * The frontend fetches this list and shows it in the challenge mode picker.
+ */
 const JOB_ROLES = [
   { id: "software-engineer", name: "Software Engineer", category: "Engineering", description: "Technical interviews covering algorithms, system design, and coding skills" },
   { id: "frontend-engineer", name: "Frontend Engineer", category: "Engineering", description: "React, CSS, performance, and web platform questions" },
@@ -28,10 +57,12 @@ const JOB_ROLES = [
   { id: "finance-analyst", name: "Finance Analyst", category: "Finance", description: "Financial modeling, valuation, budgeting, and reporting" },
 ];
 
+/** GET /api/interview/roles — Returns the full static list of supported job roles. */
 router.get("/interview/roles", (_req, res): void => {
   res.json(JOB_ROLES);
 });
 
+/** GET /api/interview/sessions — Returns all past interview sessions, oldest first. */
 router.get("/interview/sessions", async (_req, res): Promise<void> => {
   const sessions = await db
     .select()
@@ -40,6 +71,18 @@ router.get("/interview/sessions", async (_req, res): Promise<void> => {
   res.json(sessions);
 });
 
+/**
+ * POST /api/interview/sessions — Create a new interview session.
+ *
+ * Steps:
+ *   1. Validate the request body with Zod (jobRole, jobRoleName, optional jobContext).
+ *   2. Create a conversations row (the parent record for all messages).
+ *   3. Choose an appropriate opening greeting based on whether a specific role
+ *      or a generic/skill-based session was requested.
+ *   4. Insert the greeting as the first assistant message.
+ *   5. Create the interview_sessions row linking everything together.
+ *   6. Return the new session object (201 Created).
+ */
 router.post("/interview/sessions", async (req, res): Promise<void> => {
   const parsed = CreateInterviewSessionBody.safeParse(req.body);
   if (!parsed.success) {
@@ -52,6 +95,10 @@ router.post("/interview/sessions", async (req, res): Promise<void> => {
 
   const jobContext = parsed.data.jobContext ?? null;
 
+  // Determine what kind of greeting to use based on the role name:
+  //   isGeneric   → no specific role selected; use a neutral opener
+  //   isSkillMode → Answer Lab: focus on a specific skill area
+  //   otherwise   → a specific job title or posting; name it in the greeting
   const isGeneric = !parsed.data.jobRoleName || parsed.data.jobRoleName === "General Interview";
   const isSkillMode = ["Technical Skills", "Behavioural Scenarios", "Confidence & Delivery"].includes(parsed.data.jobRoleName);
 
@@ -61,12 +108,14 @@ router.post("/interview/sessions", async (req, res): Promise<void> => {
     ? `Hi, thanks for coming in today. I'm your AI interviewer and we'll be focusing on ${parsed.data.jobRoleName} today. Let's get started — tell me a bit about yourself.`
     : `Hi, thanks for coming in today. I'm conducting the interview for the ${parsed.data.jobRoleName} position. Let's get started — tell me a bit about yourself and what's brought you to this point in your career.`;
 
+  // Insert the greeting as the first message in the conversation.
   await db.insert(messages).values({
     conversationId: convo.id,
     role: "assistant",
     content: greeting,
   });
 
+  // Create the session record that ties the conversation to the job role.
   const [session] = await db
     .insert(interviewSessions)
     .values({
@@ -80,6 +129,14 @@ router.post("/interview/sessions", async (req, res): Promise<void> => {
   res.status(201).json(session);
 });
 
+/**
+ * POST /api/interview/analyze-job — Summarise a raw job posting.
+ *
+ * The frontend sends a full job posting text; GPT-4o-mini extracts the key
+ * responsibilities, skills, and experience into a short bullet-point summary.
+ * This summary is stored as jobContext on the session and injected into the
+ * AI system prompt so questions are tailored to the specific role.
+ */
 router.post("/interview/analyze-job", async (req, res): Promise<void> => {
   const { posting } = req.body;
   if (!posting || typeof posting !== "string") {
@@ -104,6 +161,14 @@ router.post("/interview/analyze-job", async (req, res): Promise<void> => {
   res.json({ summary });
 });
 
+/**
+ * POST /api/interview/research-role — Generate a role profile for a job title.
+ *
+ * Used when the user selects a built-in role (e.g. "Product Manager") without
+ * pasting a job posting. GPT-4o-mini generates a realistic profile including
+ * responsibilities, required skills, and common interview topics, which is then
+ * used as the jobContext to tailor interview questions.
+ */
 router.post("/interview/research-role", async (req, res): Promise<void> => {
   const { role } = req.body;
   if (!role || typeof role !== "string") {
@@ -133,6 +198,12 @@ Keep it concise and structured.`,
   res.json({ summary: result.choices[0]?.message?.content ?? "" });
 });
 
+/**
+ * GET /api/interview/sessions/:id — Return one session with its full message history.
+ *
+ * System messages (role === "system") are filtered out before returning so the
+ * frontend never sees the internal prompt instructions.
+ */
 router.get("/interview/sessions/:id", async (req, res): Promise<void> => {
   const params = GetInterviewSessionParams.safeParse(req.params);
   if (!params.success) {
@@ -155,11 +226,20 @@ router.get("/interview/sessions/:id", async (req, res): Promise<void> => {
     .where(eq(messages.conversationId, session.conversationId))
     .orderBy(asc(messages.createdAt));
 
+  // Strip system messages — they contain internal prompt instructions that
+  // should never be shown to the user.
   const visibleMessages = msgs.filter((m) => m.role !== "system");
 
   res.json({ ...session, messages: visibleMessages });
 });
 
+/**
+ * DELETE /api/interview/sessions/:id — Permanently delete a session and all its messages.
+ *
+ * Deleting the conversations row cascades to the messages table (via foreign key),
+ * so we only need one DELETE query. The interview_sessions row is also removed
+ * because it references the conversation.
+ */
 router.delete("/interview/sessions/:id", async (req, res): Promise<void> => {
   const params = DeleteInterviewSessionParams.safeParse(req.params);
   if (!params.success) {
@@ -183,6 +263,24 @@ router.delete("/interview/sessions/:id", async (req, res): Promise<void> => {
   res.sendStatus(204);
 });
 
+/**
+ * POST /api/interview/sessions/:id/chat — Stream the AI interviewer's next reply.
+ *
+ * This is a Server-Sent Events (SSE) endpoint. The HTTP connection stays open
+ * and the server writes tokens as they arrive from the OpenAI streaming API.
+ * Each write looks like: `data: {"content":"Hello"}\n\n`
+ * The stream ends with: `data: {"done":true}\n\n`
+ *
+ * How the AI is instructed:
+ *   - A system prompt is constructed from the session's jobContext (if any).
+ *   - Two optional hints are appended: a time note (when < ~60 s remain) and a
+ *     questions note (when a question-limit mode like Quick Round is active).
+ *   - The full conversation history (user + assistant turns) is sent with every
+ *     request so the AI has complete context of the interview so far.
+ *
+ * After the stream completes, the full AI response is saved to the database
+ * as a new assistant message.
+ */
 router.post("/interview/sessions/:id/chat", async (req, res): Promise<void> => {
   const params = SendInterviewMessageParams.safeParse(req.params);
   if (!params.success) {
@@ -208,9 +306,11 @@ router.post("/interview/sessions/:id/chat", async (req, res): Promise<void> => {
   const clientMessages = parsed.data.messages;
   const context = parsed.data.context;
   const timeLeft = parsed.data.timeLeft;
+  // questionsLeft is not in the Zod schema (it was added later), so we read it directly.
   const questionsLeft = typeof req.body.questionsLeft === "number" ? req.body.questionsLeft : undefined;
 
-  // Persist the last user message (final entry in the client messages array)
+  // Save the most recent user message to the database before generating a reply.
+  // We search in reverse because the last user message is the one just submitted.
   const lastUserMsg = [...clientMessages].reverse().find((m) => m.role === "user");
   if (lastUserMsg) {
     await db.insert(messages).values({
@@ -220,16 +320,23 @@ router.post("/interview/sessions/:id/chat", async (req, res): Promise<void> => {
     });
   }
 
+  // Append a time note to the system prompt when the session timer is running low.
+  // This nudges the AI to start wrapping up rather than asking a long new question.
   const timeNote = timeLeft !== undefined
     ? `\nTime remaining in this session: ${timeLeft} seconds. Keep questions concise and direct.`
     : "";
 
+  // Append a questions note for modes with a fixed question count (Quick Round, Boss Round).
+  // When questionsLeft is 0 the AI asks its final closing question.
   const questionsNote = questionsLeft !== undefined
     ? questionsLeft === 0
       ? `\nThis is the FINAL question of the session. Ask one last strong closing question.`
       : `\nThere ${questionsLeft === 1 ? "is 1 question" : `are ${questionsLeft} questions`} remaining in this session (including this one). Pace accordingly.`
     : "";
 
+  // Build the system prompt. If a jobContext was provided (job posting text, resume,
+  // mode-specific instructions), use it as the role description. Otherwise fall back
+  // to the session's stored jobRoleName.
   const systemPrompt = context
     ? `You are an AI hiring manager conducting a real interview for a role with the following description:
 
@@ -250,6 +357,7 @@ Rules:
 - Do not coach, hint, or suggest how to improve answers during the session.
 - Only ask questions — never explain, evaluate, or summarize mid-session.${timeNote}${questionsNote}`;
 
+  // Prepend the system prompt to the full conversation history.
   const chatMessages = [
     { role: "system" as const, content: systemPrompt },
     ...clientMessages.map((m) => ({
@@ -258,12 +366,14 @@ Rules:
     })),
   ];
 
+  // Set SSE headers so the browser knows to keep the connection alive.
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
 
   let fullResponse = "";
 
+  // Open a streaming request to OpenAI and forward each token to the client.
   const stream = await openai.chat.completions.create({
     model: "gpt-5.2",
     max_completion_tokens: 8192,
@@ -279,6 +389,7 @@ Rules:
     }
   }
 
+  // Persist the completed AI response to the database.
   await db.insert(messages).values({
     conversationId: session.conversationId,
     role: "assistant",
@@ -289,6 +400,21 @@ Rules:
   res.end();
 });
 
+/**
+ * GET /api/interview/sessions/:id/feedback — Generate AI feedback for a session.
+ *
+ * Builds a transcript from all visible messages, assembles an evaluation prompt,
+ * and calls GPT to produce a structured JSON object with:
+ *   overallScore, strengths, areasForImprovement, summary,
+ *   readinessScore, readinessImprovements, toneScore, confidenceScore, communicationScore
+ *
+ * Note: There is no caching — every request re-generates feedback. If you need to
+ * avoid repeat API calls, add a feedbackCache column to interview_sessions and
+ * check for an existing value before calling OpenAI.
+ *
+ * If the AI returns malformed JSON, a safe fallback object is used rather than
+ * returning a 500 error to the user.
+ */
 router.get("/interview/sessions/:id/feedback", async (req, res): Promise<void> => {
   const params = GetInterviewFeedbackParams.safeParse(req.params);
   if (!params.success) {
@@ -311,16 +437,22 @@ router.get("/interview/sessions/:id/feedback", async (req, res): Promise<void> =
     .where(eq(messages.conversationId, session.conversationId))
     .orderBy(asc(messages.createdAt));
 
+  // Filter out system messages so they don't appear in the transcript.
   const visibleMessages = msgs.filter((m) => m.role !== "system");
 
+  // Format the conversation as a human-readable transcript for the AI evaluator.
   const transcript = visibleMessages
     .map((m) => `${m.role === "user" ? "Candidate" : "Interviewer"}: ${m.content}`)
     .join("\n\n");
 
+  // Append the job description if one was stored on the session.
   const jobContext = session.jobContext
     ? `\n\nJob Description:\n${session.jobContext}`
     : "";
 
+  // The feedback prompt instructs the AI to act as an interview coach and return
+  // structured JSON. The JSON schema is specified in the prompt rather than using
+  // the OpenAI JSON mode so we stay compatible with older model versions.
   const feedbackPrompt = `You are an expert interview coach. Review this mock interview transcript for the position of ${session.jobRoleName} and provide structured feedback.
 
 Evaluate the candidate on:

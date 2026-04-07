@@ -1,3 +1,26 @@
+/**
+ * home.tsx — Dashboard / session launcher ("Pass the Filter" landing screen)
+ *
+ * Route: /
+ *
+ * This is the first screen users see after opening the app. It shows:
+ *   • Streak + stats bar       — total sessions, avg score, streak
+ *   • Challenge mode cards     — Quick Round, Full Session, Answer Lab, Boss Round
+ *   • Session history panel    — last few sessions with scores and links
+ *   • Role/posting selector    — built-in roles, saved job postings, custom text
+ *   • Launch button            — creates a new session and navigates to /interview/:id
+ *
+ * How launching a session works:
+ *   1. User selects a challenge mode and job target.
+ *   2. "Start Session" calls POST /api/interview/sessions via useCreateInterviewSession.
+ *   3. The API auto-generates an opening greeting and stores it as the first message.
+ *   4. On success, the user is navigated to /interview/:id?mode=<mode>.
+ *
+ * derivePositionName() resolves the human-readable role name from the current
+ * jobTarget selection, which can be a built-in role ID, a "posting:<id>" reference,
+ * a "custom" free-text entry, or the Answer Lab skill modes.
+ */
+
 import { useState } from "react";
 import { useLocation } from "wouter";
 import {

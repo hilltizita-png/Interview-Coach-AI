@@ -1,3 +1,22 @@
+/**
+ * profile.tsx — User profile management page
+ *
+ * Route: /profile
+ * Lets the user store:
+ *   1. Resume text — typed or uploaded as PDF/TXT/MD. The text is extracted
+ *      client-side and saved to the profile context (localStorage).
+ *   2. Job postings — labelled snippets of job descriptions that can be
+ *      selected as the interview target on the home page.
+ *
+ * All data is persisted through the ProfileContext (profile-context.tsx),
+ * which serialises to localStorage. There is no server-side user account —
+ * everything lives in the browser.
+ *
+ * Components on this page:
+ *   ResumeSection      — resume text area + PDF upload drop-zone
+ *   JobPostingsSection — list of saved postings with add/edit/delete
+ */
+
 import { useState, useRef } from "react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -17,8 +36,23 @@ import {
   FileUp,
 } from "lucide-react";
 
+/**
+ * extractTextFromPdf — Client-side PDF text extraction using PDF.js.
+ *
+ * Dynamically imports pdfjs-dist to keep it out of the main bundle.
+ * Iterates over every page and concatenates the text items.
+ *
+ * Limitations:
+ *   • Only works with text-based PDFs (not scanned images).
+ *   • Scanned PDFs will return an empty or near-empty string; the caller
+ *     shows an error message in that case.
+ *
+ * @param file — The File object selected by the user (PDF/TXT/MD).
+ * @returns     The full extracted text content as a plain string.
+ */
 async function extractTextFromPdf(file: File): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist");
+  // Point to the bundled web worker so PDF.js can parse the file off the main thread.
   pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
     "pdfjs-dist/build/pdf.worker.min.mjs",
     import.meta.url
@@ -28,15 +62,18 @@ async function extractTextFromPdf(file: File): Promise<string> {
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   const pages: string[] = [];
 
+  // Iterate page-by-page (PDF.js pages are 1-indexed).
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
+    // Each item is a text run — join them with spaces to form a page string.
     const pageText = content.items
       .map((item) => ("str" in item ? item.str : ""))
       .join(" ");
     pages.push(pageText);
   }
 
+  // Collapse any run of 3+ whitespace chars to 2 (cleans up PDF spacing artifacts).
   return pages.join("\n\n").replace(/\s{3,}/g, "  ").trim();
 }
 

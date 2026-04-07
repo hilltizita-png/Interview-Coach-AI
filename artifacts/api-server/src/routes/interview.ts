@@ -52,7 +52,14 @@ router.post("/interview/sessions", async (req, res): Promise<void> => {
 
   const jobContext = parsed.data.jobContext ?? null;
 
-  const greeting = `Hi, thanks for coming in today. I'm conducting the interview for the ${parsed.data.jobRoleName} position. Let's get started — tell me a bit about yourself and what's brought you to this point in your career.`;
+  const isGeneric = !parsed.data.jobRoleName || parsed.data.jobRoleName === "General Interview";
+  const isSkillMode = ["Technical Skills", "Behavioural Scenarios", "Confidence & Delivery"].includes(parsed.data.jobRoleName);
+
+  const greeting = isGeneric
+    ? `Hi, thanks for coming in today. I'm your AI interviewer for this practice session. Let's get started — tell me a bit about yourself and what's brought you to this point in your career.`
+    : isSkillMode
+    ? `Hi, thanks for coming in today. I'm your AI interviewer and we'll be focusing on ${parsed.data.jobRoleName} today. Let's get started — tell me a bit about yourself.`
+    : `Hi, thanks for coming in today. I'm conducting the interview for the ${parsed.data.jobRoleName} position. Let's get started — tell me a bit about yourself and what's brought you to this point in your career.`;
 
   await db.insert(messages).values({
     conversationId: convo.id,

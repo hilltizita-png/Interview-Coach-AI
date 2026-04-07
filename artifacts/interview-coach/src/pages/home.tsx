@@ -228,6 +228,17 @@ export default function Home() {
     return context || undefined;
   };
 
+  const derivePositionName = (): string => {
+    if (jobTarget.startsWith("posting:")) {
+      const id = jobTarget.replace("posting:", "");
+      const posting = jobPostings.find((p) => p.id === id);
+      if (posting?.label) return posting.label;
+    } else if (jobTarget === "custom" && customRoleText.trim()) {
+      return customRoleText.trim();
+    }
+    return "";
+  };
+
   const handleBegin = async () => {
     const isAnswerLab = selected === "answer-lab";
     const isBossRound = selected === "boss-round";
@@ -277,12 +288,7 @@ export default function Home() {
         }
       : {
           jobRole: "general",
-          jobRoleName: (() => {
-            if (selected === "quick-round") return "Quick Round";
-            if (selected === "full-session") return "Full Session";
-            if (selected === "boss-round") return "Boss Round";
-            return "General Interview";
-          })(),
+          jobRoleName: derivePositionName() || "General Interview",
           jobContext: [modeInstructions, jobContext].filter(Boolean).join("\n\n") || undefined,
         };
 

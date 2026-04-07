@@ -627,7 +627,9 @@ ${(data.readinessImprovements as string[]).map(a => `• ${a}`).join("\n")}`;
           style={{ width: 16, height: 16, cursor: "pointer", opacity: 0.7 }}
           onClick={() => setLocation("/")}
         />
-        <span data-testid="interview-role-name">{session.jobRoleName}</span>
+        {(session.jobRoleName !== "General Interview" || mode === "general") && (
+          <span data-testid="interview-role-name">{session.jobRoleName}</span>
+        )}
         {mode !== "general" && (
           <span style={{
             display: "inline-flex",

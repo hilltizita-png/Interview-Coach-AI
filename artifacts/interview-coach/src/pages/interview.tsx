@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { streamInterviewReply } from "@/services/ai";
-import { useRoute, useLocation, Link } from "wouter";
+import { useRoute, useLocation, useSearch, Link } from "wouter";
 import { useGetInterviewSession, getGetInterviewSessionQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Send, CheckCircle2, Bot, Volume2, VolumeX, Mic, MicOff } from "lucide-react";
+import { ArrowLeft, Send, CheckCircle2, Bot, Volume2, VolumeX, Mic, MicOff, Zap, BookOpen, FlaskConical, Trophy } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
 import TalkingAvatar from "@/components/TalkingAvatar";
@@ -107,10 +107,23 @@ interface LocalMessage {
   isSystem?: boolean;
 }
 
-const TIMER_OPTIONS = [15, 30, 60, 0] as const;
-type TimerDuration = typeof TIMER_OPTIONS[number];
+type ChallengeMode = "quick-round" | "full-session" | "answer-lab" | "boss-round" | "general";
 
-const SESSION_OPTIONS = [15, 30, 45, 60] as const;
+const MODE_CONFIG: Record<ChallengeMode, {
+  totalMins: number | null;
+  maxQuestions: number | null;
+  closingNote: boolean;
+  label: string;
+  Icon: React.ElementType;
+  color: string;
+  badgeClass: string;
+}> = {
+  "quick-round":  { totalMins: 10,   maxQuestions: 5,    closingNote: false, label: "Quick Round",  Icon: Zap,         color: "text-yellow-400", badgeClass: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30" },
+  "full-session": { totalMins: 40,   maxQuestions: null,  closingNote: true,  label: "Full Session", Icon: BookOpen,    color: "text-blue-400",   badgeClass: "bg-blue-500/20 text-blue-300 border-blue-500/30"     },
+  "answer-lab":   { totalMins: null, maxQuestions: null,  closingNote: false, label: "Answer Lab",   Icon: FlaskConical, color: "text-purple-400", badgeClass: "bg-purple-500/20 text-purple-300 border-purple-500/30" },
+  "boss-round":   { totalMins: 15,   maxQuestions: 5,    closingNote: false, label: "Boss Round",   Icon: Trophy,      color: "text-red-400",    badgeClass: "bg-red-500/20 text-red-300 border-red-500/30"       },
+  "general":      { totalMins: 30,   maxQuestions: null,  closingNote: false, label: "Practice",     Icon: Bot,         color: "text-zinc-400",   badgeClass: "bg-zinc-700/40 text-zinc-400 border-zinc-700/40"     },
+};
 
 function formatTime(seconds: number) {
   const mins = Math.floor(seconds / 60);
@@ -122,6 +135,9 @@ export default function Interview() {
   const [, params] = useRoute("/interview/:sessionId");
   const sessionId = params?.sessionId ? parseInt(params.sessionId, 10) : 0;
   const [, setLocation] = useLocation();
+  const search = useSearch();
+  const mode = ((new URLSearchParams(search).get("mode")) ?? "general") as ChallengeMode;
+  const modeConfig = MODE_CONFIG[mode] ?? MODE_CONFIG.general;
   const queryClient = useQueryClient();
 
   const { data: session, isLoading, error } = useGetInterviewSession(sessionId, {
@@ -138,13 +154,15 @@ export default function Interview() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [avatarFeedback, setAvatarFeedback] = useState<"good" | "needs improvement" | "thinking" | undefined>();
 
-  const [timerDuration, setTimerDuration] = useState<TimerDuration>(0);
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [isTimerActive, setIsTimerActive] = useState(false);
+  const [totalTimeLeft, setTotalTimeLeft] = useState(
+    modeConfig.totalMins !== null ? modeConfig.totalMins * 60 : 0
+  );
+  const [isInterviewActive, setIsInterviewActive] = useState(modeConfig.totalMins !== null);
 
-  const [interviewDuration, setInterviewDuration] = useState(30); // minutes
-  const [totalTimeLeft, setTotalTimeLeft] = useState(30 * 60); // seconds
-  const [isInterviewActive, setIsInterviewActive] = useState(true);
+  const [answersSubmitted, setAnswersSubmitted] = useState(0);
+  const [sessionEnded, setSessionEnded] = useState(false);
+
+  const sessionEndedRef = useRef(false);
 
   useEffect(() => {
     window.speechSynthesis.onvoiceschanged = () => {
@@ -164,7 +182,6 @@ export default function Interview() {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Sync remote messages
   useEffect(() => {
     if (session?.messages) {
       setLocalMessages(session.messages.map(m => ({
@@ -175,7 +192,6 @@ export default function Interview() {
     }
   }, [session?.messages]);
 
-  // Scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [localMessages, streamingContent, isStreaming]);
@@ -192,7 +208,6 @@ export default function Interview() {
     else setAvatarFeedback("thinking");
   }, [localMessages]);
 
-  // Speak last assistant message when it arrives
   useEffect(() => {
     if (localMessages.length === 0) return;
     const lastMessage = localMessages[localMessages.length - 1];
@@ -203,49 +218,86 @@ export default function Interview() {
     }
   }, [localMessages, speechEnabled, isNarration]);
 
-  // Session timer countdown
-  useEffect(() => {
-    if (!isInterviewActive) return;
+  const loadFeedback = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/interview/sessions/${sessionId}/feedback`);
+      const data = await res.json();
 
-    if (totalTimeLeft === 0) {
-      setIsInterviewActive(false);
+      const content = `Session complete.
 
-      const loadFeedback = async () => {
-        try {
-          const res = await fetch(`/api/interview/sessions/${sessionId}/feedback`);
-          const data = await res.json();
-
-          const content = `Interview complete.
+Readiness Score: ${data.readinessScore}/100
 
 Strengths:
-${(data.strengths as string[]).map(s => `- ${s}`).join("\n")}
+${(data.strengths as string[]).map(s => `• ${s}`).join("\n")}
 
 Areas to improve:
-${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
+${(data.areasForImprovement as string[]).map(a => `• ${a}`).join("\n")}
 
-          setLocalMessages(prev => [
-            ...prev,
-            {
-              id: `system-end-${Date.now()}`,
-              role: "assistant" as const,
-              content,
-              isSystem: true,
-            }
-          ]);
-        } catch {
-          setLocalMessages(prev => [
-            ...prev,
-            {
-              id: `system-end-${Date.now()}`,
-              role: "assistant" as const,
-              content: "Interview complete. Great job!",
-              isSystem: true,
-            }
-          ]);
+Steps to improve your score:
+${(data.readinessImprovements as string[]).map(a => `• ${a}`).join("\n")}`;
+
+      setLocalMessages(prev => [
+        ...prev,
+        {
+          id: `feedback-${Date.now()}`,
+          role: "assistant" as const,
+          content,
+          isSystem: true,
         }
-      };
+      ]);
 
-      loadFeedback();
+      setTimeout(() => setLocation(`/feedback/${sessionId}`), 4000);
+    } catch {
+      setLocalMessages(prev => [
+        ...prev,
+        {
+          id: `feedback-err-${Date.now()}`,
+          role: "assistant" as const,
+          content: "Session complete. Great work! Your feedback is being prepared — click 'Get Feedback' to view it.",
+          isSystem: true,
+        }
+      ]);
+    }
+  }, [sessionId, setLocation]);
+
+  const endSession = useCallback(async (reason: "max-questions" | "timer") => {
+    if (sessionEndedRef.current) return;
+    sessionEndedRef.current = true;
+    setSessionEnded(true);
+    setIsInterviewActive(false);
+
+    let closingText = "";
+
+    if (reason === "timer" && modeConfig.closingNote) {
+      closingText = "That brings us to the end of our time together today. You've shown some real strengths in this session — I've genuinely enjoyed our conversation. Give me a moment and I'll put together detailed feedback on your performance.";
+    } else if (mode === "boss-round") {
+      closingText = "That wraps up your Boss Round. Those were the toughest questions I could throw at you — let me pull your results.";
+    } else if (mode === "quick-round") {
+      closingText = "And that's five questions — Quick Round complete! Let me score your performance.";
+    } else {
+      closingText = "That's the end of your session. Well done for completing it — let me prepare your feedback.";
+    }
+
+    setLocalMessages(prev => [
+      ...prev,
+      {
+        id: `closing-${Date.now()}`,
+        role: "assistant" as const,
+        content: closingText,
+        isSystem: true,
+      }
+    ]);
+
+    await new Promise(resolve => setTimeout(resolve, 1800));
+    await loadFeedback();
+  }, [mode, modeConfig.closingNote, loadFeedback]);
+
+  // Session timer countdown
+  useEffect(() => {
+    if (!isInterviewActive || sessionEnded) return;
+
+    if (totalTimeLeft === 0) {
+      endSession("timer");
       return;
     }
 
@@ -254,32 +306,10 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
     }, 1000);
 
     return () => clearTimeout(interval);
-  }, [totalTimeLeft, isInterviewActive]);
-
-  // Start timer when the last message is from the assistant
-  useEffect(() => {
-    if (!isInterviewActive) return;
-    if (localMessages.length === 0) return;
-    if (timerDuration === 0) return;
-
-    const lastMessage = localMessages[localMessages.length - 1];
-    const userHasAnswered = localMessages.some(m => m.role === "user");
-    if (lastMessage.role === "assistant" && !lastMessage.isSystem && userHasAnswered) {
-      setTimeLeft(timerDuration);
-      setIsTimerActive(true);
-    }
-  }, [localMessages, isInterviewActive]);
-
-  // Pause timer while streaming
-  useEffect(() => {
-    if (isStreaming) setIsTimerActive(false);
-  }, [isStreaming]);
+  }, [totalTimeLeft, isInterviewActive, sessionEnded, endSession]);
 
   const handleSendMessage = useCallback(async () => {
-    if (!input.trim() || isStreaming) return;
-
-    setIsTimerActive(false);
-    setTimeLeft(timerDuration);
+    if (!input.trim() || isStreaming || sessionEnded) return;
 
     const userMessageContent = input.trim();
     setInput("");
@@ -292,18 +322,26 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
     setStreamingContent("");
     setAvatarFeedback("thinking");
 
+    const newAnswerCount = answersSubmitted + 1;
+    setAnswersSubmitted(newAnswerCount);
+
     try {
       const messagesForApi = [
         ...localMessages,
         { id: `user-${tempId}`, role: "user" as const, content: userMessageContent },
       ].map(({ role, content }) => ({ role, content }));
 
+      const questionsLeft = modeConfig.maxQuestions !== null
+        ? modeConfig.maxQuestions - newAnswerCount
+        : undefined;
+
       const assistantContent = await streamInterviewReply(
         sessionId,
         session?.jobContext ?? undefined,
         messagesForApi,
         (text) => setStreamingContent(text),
-        totalTimeLeft,
+        modeConfig.totalMins !== null ? totalTimeLeft : undefined,
+        questionsLeft,
       );
 
       setLocalMessages(prev => [...prev, { id: `assistant-${tempId}`, role: "assistant", content: assistantContent }]);
@@ -321,38 +359,17 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
       }, 500);
       queryClient.invalidateQueries({ queryKey: getGetInterviewSessionQueryKey(sessionId) });
 
+      // End session when max questions are answered
+      if (modeConfig.maxQuestions !== null && newAnswerCount >= modeConfig.maxQuestions) {
+        setTimeout(() => endSession("max-questions"), 1200);
+      }
+
     } catch (err) {
       console.error(err);
       setIsStreaming(false);
       setStreamingContent("");
     }
-  }, [input, isStreaming, localMessages, sessionId, session?.jobContext, timerDuration, queryClient]);
-
-  // Countdown tick — setTimeout pattern: each render captures a fresh closure, no ref needed
-  useEffect(() => {
-    if (!isTimerActive) return;
-
-    if (timeLeft === 0) {
-      setIsTimerActive(false);
-      if (input.trim()) {
-        handleSendMessage();
-      } else {
-        setLocalMessages(prev => [
-          ...prev,
-          {
-            id: `timeout-${Date.now()}`,
-            role: "assistant",
-            content: "Time's up — in real interviews, quick thinking matters. Let's try the next one.",
-            isSystem: true,
-          },
-        ]);
-      }
-      return;
-    }
-
-    const timer = setTimeout(() => setTimeLeft(prev => prev - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [timeLeft, isTimerActive]);
+  }, [input, isStreaming, sessionEnded, localMessages, sessionId, session?.jobContext, totalTimeLeft, modeConfig, answersSubmitted, queryClient, endSession]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -360,23 +377,6 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
       handleSendMessage();
     }
   };
-
-  const handleTimerDurationChange = (d: TimerDuration) => {
-    setTimerDuration(d);
-    setIsTimerActive(false);
-    setTimeLeft(d);
-  };
-
-  const handleInterviewDurationChange = (mins: number) => {
-    setInterviewDuration(mins);
-    setTotalTimeLeft(mins * 60);
-  };
-
-  function startInterview(minutes: number) {
-    setInterviewDuration(minutes);
-    setTotalTimeLeft(minutes * 60);
-    setIsInterviewActive(true);
-  }
 
   if (isLoading) {
     return (
@@ -397,10 +397,15 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
     return (
       <div className="h-[100dvh] flex items-center justify-center bg-background flex-col gap-4">
         <div className="text-xl text-destructive">Session not found or error loading session.</div>
-        <Button onClick={() => setLocation("/")}>Go back to Roles</Button>
+        <Button onClick={() => setLocation("/")}>Go back</Button>
       </div>
     );
   }
+
+  const ModeIcon = modeConfig.Icon;
+  const questionsLeft = modeConfig.maxQuestions !== null
+    ? Math.max(modeConfig.maxQuestions - answersSubmitted, 0)
+    : null;
 
   return (
     <div className="h-[100dvh] flex flex-col bg-background relative">
@@ -413,14 +418,34 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
             </Link>
           </Button>
           <div>
-            <h1 className="font-serif font-bold text-lg leading-none" data-testid="text-role-name">
-              {session.jobRoleName}
-            </h1>
-            {isInterviewActive && (
-              <div className={`interview-timer ${totalTimeLeft < 300 ? "warning" : ""}`}>
-                🕒 {formatTime(totalTimeLeft)}
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <h1 className="font-serif font-bold text-lg leading-none" data-testid="text-role-name">
+                {session.jobRoleName}
+              </h1>
+              {mode !== "general" && (
+                <span className={`inline-flex items-center gap-1 text-xs font-semibold rounded-full px-2.5 py-0.5 border ${modeConfig.badgeClass}`}>
+                  <ModeIcon className="w-3 h-3" />
+                  {modeConfig.label}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3 mt-0.5">
+              {isInterviewActive && modeConfig.totalMins !== null && (
+                <div className={`interview-timer ${totalTimeLeft < 120 ? "warning" : ""}`}>
+                  🕒 {formatTime(totalTimeLeft)}
+                </div>
+              )}
+              {questionsLeft !== null && !sessionEnded && (
+                <span className="text-xs text-muted-foreground">
+                  {questionsLeft === 0
+                    ? "Wrapping up…"
+                    : `${questionsLeft} question${questionsLeft === 1 ? "" : "s"} left`}
+                </span>
+              )}
+              {sessionEnded && (
+                <span className="text-xs font-medium text-emerald-400">Session complete</span>
+              )}
+            </div>
           </div>
         </div>
         
@@ -457,7 +482,7 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
             className="gap-2"
           >
             <CheckCircle2 className="w-4 h-4 text-primary" />
-            Get Feedback
+            {mode === "answer-lab" ? "Get Feedback" : "View Feedback"}
           </Button>
         </div>
       </header>
@@ -469,7 +494,7 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
         <div className="avatar-panel">
           <TalkingAvatar isSpeaking={isSpeaking} feedback={avatarFeedback} />
           <p className="avatar-status">
-            {isSpeaking ? "Answering…" : isStreaming ? "Thinking…" : "Listening"}
+            {sessionEnded ? "Session complete" : isSpeaking ? "Answering…" : isStreaming ? "Thinking…" : "Listening"}
           </p>
         </div>
 
@@ -501,7 +526,9 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
                   className={`px-5 py-4 rounded-2xl max-w-[85%] text-base leading-relaxed shadow-sm ${
                     msg.role === "user" 
                       ? "bg-primary text-primary-foreground rounded-tr-sm" 
-                      : "bg-card text-card-foreground border border-border rounded-tl-sm"
+                      : msg.isSystem
+                        ? "bg-muted/60 text-foreground border border-border/60 rounded-tl-sm"
+                        : "bg-card text-card-foreground border border-border rounded-tl-sm"
                   }`}
                 >
                   <div className="whitespace-pre-wrap">{msg.content}</div>
@@ -540,12 +567,13 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={
-                  isStreaming ? "Wait for the coach to finish..."
+                  sessionEnded ? "Session complete — view your feedback above"
+                  : isStreaming ? "Wait for the coach to finish..."
                   : isListening ? "Listening..."
                   : "Type or speak your response… (Enter to send)"
                 }
                 className="min-h-[60px] max-h-[200px] resize-none pr-24 rounded-xl border-input bg-background shadow-sm focus-visible:ring-1 focus-visible:ring-primary text-base"
-                disabled={isStreaming || isListening}
+                disabled={isStreaming || isListening || sessionEnded}
                 data-testid="input-chat"
                 rows={2}
               />
@@ -554,7 +582,7 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
                 variant="ghost"
                 className={`absolute right-14 bottom-3 rounded-lg w-10 h-10 ${isListening ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
                 onClick={handleMicClick}
-                disabled={isStreaming}
+                disabled={isStreaming || sessionEnded}
                 data-testid="button-mic"
                 title={isListening ? "Listening..." : "Speak your answer"}
               >
@@ -564,14 +592,26 @@ ${(data.areasForImprovement as string[]).map(a => `- ${a}`).join("\n")}`;
                 size="icon" 
                 className="absolute right-3 bottom-3 rounded-lg w-10 h-10 shadow-sm"
                 onClick={handleSendMessage}
-                disabled={!input.trim() || isStreaming}
+                disabled={!input.trim() || isStreaming || sessionEnded}
                 data-testid="button-send"
               >
                 <Send className="w-4 h-4" />
               </Button>
             </div>
             <div className="max-w-3xl mx-auto mt-2 text-center">
-              <span className="text-xs text-muted-foreground">Practice space — say anything here.</span>
+              {sessionEnded ? (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setLocation(`/feedback/${sessionId}`)}
+                  className="text-xs gap-1"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  View Full Feedback Report
+                </Button>
+              ) : (
+                <span className="text-xs text-muted-foreground">Practice space — say anything here.</span>
+              )}
             </div>
           </div>
         </div>

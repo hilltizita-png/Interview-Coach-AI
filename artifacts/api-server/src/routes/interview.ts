@@ -201,6 +201,7 @@ router.post("/interview/sessions/:id/chat", async (req, res): Promise<void> => {
   const clientMessages = parsed.data.messages;
   const context = parsed.data.context;
   const timeLeft = parsed.data.timeLeft;
+  const questionsLeft = typeof req.body.questionsLeft === "number" ? req.body.questionsLeft : undefined;
 
   // Persist the last user message (final entry in the client messages array)
   const lastUserMsg = [...clientMessages].reverse().find((m) => m.role === "user");
@@ -213,7 +214,13 @@ router.post("/interview/sessions/:id/chat", async (req, res): Promise<void> => {
   }
 
   const timeNote = timeLeft !== undefined
-    ? `\nThe interview has limited time remaining: ${timeLeft} seconds.\nIf time is short, ask more direct and concise questions.`
+    ? `\nTime remaining in this session: ${timeLeft} seconds. Keep questions concise and direct.`
+    : "";
+
+  const questionsNote = questionsLeft !== undefined
+    ? questionsLeft === 0
+      ? `\nThis is the FINAL question of the session. Ask one last strong closing question.`
+      : `\nThere ${questionsLeft === 1 ? "is 1 question" : `are ${questionsLeft} questions`} remaining in this session (including this one). Pace accordingly.`
     : "";
 
   const systemPrompt = context
@@ -226,7 +233,7 @@ Rules:
 - After the candidate answers, immediately ask the next relevant question without providing feedback, commentary, praise, or guidance.
 - Keep the interview flowing naturally like a real interview.
 - Do not coach, hint, or suggest how to improve answers during the session.
-- Only ask questions — never explain, evaluate, or summarize mid-session.${timeNote}`
+- Only ask questions — never explain, evaluate, or summarize mid-session.${timeNote}${questionsNote}`
     : `You are an AI hiring manager conducting a practice interview for the ${session.jobRoleName} position.
 
 Rules:
@@ -234,7 +241,7 @@ Rules:
 - After the candidate answers, immediately ask the next relevant question without providing feedback, commentary, praise, or guidance.
 - Keep the interview flowing naturally like a real interview.
 - Do not coach, hint, or suggest how to improve answers during the session.
-- Only ask questions — never explain, evaluate, or summarize mid-session.${timeNote}`;
+- Only ask questions — never explain, evaluate, or summarize mid-session.${timeNote}${questionsNote}`;
 
   const chatMessages = [
     { role: "system" as const, content: systemPrompt },

@@ -228,17 +228,48 @@ export default function Home() {
     return context || undefined;
   };
 
-  const handleBegin = () => {
+  const handleBegin = async () => {
     const isAnswerLab = selected === "answer-lab";
+    const isBossRound = selected === "boss-round";
     const skillLabel = SKILLS.find((s) => s.id === selectedSkill)?.label ?? "Technical Skills";
     const jobContext = buildJobContext();
+
+    let modeInstructions = "";
+    if (selected === "quick-round") {
+      modeInstructions = "QUICK ROUND MODE: Ask exactly 5 rapid-fire, high-signal questions. Be direct and concise. Cover the most important aspects of the role in minimal time.";
+    } else if (selected === "full-session") {
+      modeInstructions = "FULL SESSION MODE: Conduct a comprehensive interview. Cover behavioral, situational, and technical questions. Gradually increase difficulty. Vary question types to give a complete picture of the candidate.";
+    } else if (isBossRound) {
+      let weaknessContext = "";
+      try {
+        const sessionsRes = await fetch("/api/interview/sessions");
+        const allSessions: { id: number }[] = await sessionsRes.json();
+        const recentIds = allSessions.slice(-3).map((s) => s.id);
+        const feedbacks = await Promise.allSettled(
+          recentIds.map((id) => fetch(`/api/interview/sessions/${id}/feedback`).then((r) => r.json()))
+        );
+        const weaknesses: string[] = [];
+        for (const result of feedbacks) {
+          if (result.status === "fulfilled" && result.value?.areasForImprovement) {
+            weaknesses.push(...(result.value.areasForImprovement as string[]));
+          }
+        }
+        if (weaknesses.length > 0) {
+          const unique = [...new Set(weaknesses)].slice(0, 6);
+          weaknessContext = `\n\nPast weaknesses identified from previous sessions:\n${unique.map((w) => `- ${w}`).join("\n")}\n\nTarget these specific areas with your most difficult questions.`;
+        }
+      } catch {
+        // If fetch fails, proceed without weakness context
+      }
+      modeInstructions = `BOSS ROUND MODE: Ask only the most difficult, pressure-testing interview questions. Use curveball questions, complex hypotheticals, failure scenarios, and deep follow-ups. Do not go easy on the candidate. Expose any weaknesses and push for depth in every answer.${weaknessContext}`;
+    }
 
     const sessionData = isAnswerLab
       ? {
           jobRole: selectedSkill,
           jobRoleName: skillLabel,
           jobContext: [
-            `Focus exclusively on ${skillLabel} questions. Ask one targeted question at a time and move on after each answer without providing feedback.`,
+            `ANSWER LAB MODE: Focus exclusively on ${skillLabel} questions. Ask one targeted question at a time and move on after each answer without providing feedback or coaching. Wait for the candidate to request feedback explicitly.`,
             jobContext,
           ]
             .filter(Boolean)
@@ -246,14 +277,19 @@ export default function Home() {
         }
       : {
           jobRole: "general",
-          jobRoleName: "General Interview",
-          ...(jobContext ? { jobContext } : {}),
+          jobRoleName: (() => {
+            if (selected === "quick-round") return "Quick Round";
+            if (selected === "full-session") return "Full Session";
+            if (selected === "boss-round") return "Boss Round";
+            return "General Interview";
+          })(),
+          jobContext: [modeInstructions, jobContext].filter(Boolean).join("\n\n") || undefined,
         };
 
     createSession.mutate(
       { data: sessionData },
       {
-        onSuccess: (session) => setLocation(`/interview/${session.id}`),
+        onSuccess: (session) => setLocation(`/interview/${session.id}?mode=${selected ?? "general"}`),
         onError: () =>
           toast({
             title: "Could not start session",

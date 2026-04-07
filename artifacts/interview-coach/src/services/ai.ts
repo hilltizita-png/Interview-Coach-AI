@@ -9,11 +9,12 @@ export async function streamInterviewReply(
   messages: ChatMessage[],
   onChunk: (text: string) => void,
   timeLeft?: number,
+  questionsLeft?: number,
 ): Promise<string> {
   const response = await fetch(`/api/interview/sessions/${sessionId}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ context, messages, timeLeft }),
+    body: JSON.stringify({ context, messages, timeLeft, questionsLeft }),
   });
 
   if (!response.ok) throw new Error("Failed to send message");

@@ -1,24 +1,34 @@
 # AI Interview Coach
 
-A full-stack AI-powered interview preparation platform. Practice with a real-time streaming AI interviewer, receive detailed feedback, and track your readiness score — all presented in a Zoom-style interface with an animated SVG avatar.
+A full-stack AI-powered interview preparation platform. Practice with a streaming AI interviewer, get detailed post-session feedback, and track your job readiness score — all inside a Zoom-style interface with an animated talking avatar.
 
 ---
 
 ## Features
 
-- **AI Interviewer** — Streaming, real-time conversation powered by GPT-5 via Server-Sent Events
-- **Animated Talking Avatar** — SVG character "Sarah" with blinking eyes, breathing, head nods, and mouth sync to speech
-- **Text-to-Speech (TTS)** — Interviewer narrates every question aloud with browser speech synthesis
-- **Speech-to-Text (STT)** — Answer by speaking using the Web Speech API microphone button
-- **Job Analysis** — Paste any job posting and the AI extracts key skills and tailors questions to match
+- **Streaming AI Interviewer** — Real-time conversation over Server-Sent Events (SSE), powered by GPT-4o / GPT-4o-mini via Replit AI Integrations
+- **Animated Talking Avatar** — SVG character "Sarah" with blinking eyes, head nods, breathing idle, and mouth sync to speech
+- **Text-to-Speech (TTS)** — Every AI response is narrated aloud using the browser Speech Synthesis API
+- **Speech-to-Text (STT)** — Answer by speaking; the Web Speech API transcribes your voice live
+- **PDF Resume Upload** — Upload your resume as a PDF, `.txt`, or `.md`; text is extracted client-side with PDF.js and used to tailor questions
+- **Job Posting Analysis** — Paste any job posting and the AI extracts key skills and custom-tailors the entire session
 - **12 Built-in Roles** — Engineering, Data, Product, Design, and Business categories
-- **Per-Question Timer** — Countdown pressure (15s / 30s / 60s / off) to simulate real interviews
-- **Session Timer** — 30-minute or 1-hour total interview session with automatic feedback at expiry
-- **Job Readiness Score** — Color-coded 1–100 score with specific improvement steps
-- **In-chat Feedback** — Strengths and areas to improve after every session
-- **Interview History** — Past sessions are persisted and browsable
-- **Zoom/Teams Layout** — Dark avatar panel on the left, chat on the right for a real call feel
-- **Dark Game-style Dashboard** — "Pass the Filter" challenge hub with streak tracking and achievements
+- **Job Readiness Score** — Color-coded 1–100 score with specific next steps
+- **In-chat Feedback** — Strengths and areas to improve surfaced after every session
+- **Interview History** — All past sessions are persisted in PostgreSQL and browsable
+- **Zoom-style Interview Screen** — Full-screen dark avatar panel, floating chat side panel, control bar bottom-left, mic/speaker/feedback/end-session controls
+- **"Pass the Filter" Dashboard** — Four distinct challenge modes with mode-specific rules and timers
+
+---
+
+## Challenge Modes
+
+| Mode | Time Limit | Questions | Behavior |
+|---|---|---|---|
+| **Quick Round** | 10 min | 5 | Fast-fire questions; auto-feedback when time or questions run out |
+| **Full Session** | 40 min | Unlimited | Full interview experience; Sarah closes warmly, then feedback loads |
+| **Answer Lab** | None | Unlimited | No pressure — practice phrasing, request feedback anytime |
+| **Boss Round** | 15 min | 5 | Fetches your past session weaknesses and targets them with the hardest questions |
 
 ---
 
@@ -33,7 +43,8 @@ A full-stack AI-powered interview preparation platform. Practice with a real-tim
 | Backend | Node.js 24, Express 5, TypeScript |
 | Database | PostgreSQL + Drizzle ORM |
 | Validation | Zod v4, drizzle-zod |
-| AI | OpenAI GPT-5.2 (chat/feedback), GPT-4o-mini (analysis) via Replit AI Integrations |
+| AI | GPT-4o (chat/feedback), GPT-4o-mini (analysis) via Replit AI Integrations |
+| PDF Parsing | pdfjs-dist (client-side, no server required) |
 | API Codegen | Orval (OpenAPI → React Query hooks + Zod schemas) |
 | Build | esbuild (API), Vite (frontend) |
 | Package Manager | pnpm Workspaces (monorepo) |
@@ -56,9 +67,12 @@ A full-stack AI-powered interview preparation platform. Practice with a real-tim
 │           ├── pages/
 │           │   ├── home.tsx     # "Pass the Filter" dashboard
 │           │   ├── interview.tsx# Zoom-style interview screen
-│           │   └── feedback.tsx # Post-session feedback & score
+│           │   ├── feedback.tsx # Post-session feedback & score
+│           │   └── profile.tsx  # Resume upload + job postings
 │           ├── components/
 │           │   └── TalkingAvatar.tsx # Animated SVG interviewer
+│           ├── contexts/
+│           │   └── profile-context.tsx # Resume + postings state
 │           └── services/
 │               └── ai.ts        # Streaming chat client
 ├── lib/
@@ -108,36 +122,32 @@ cp .env.example .env
 
 | Variable | Description |
 |---|---|
-| `DATABASE_URL` | PostgreSQL connection string (e.g. `postgres://user:pass@localhost:5432/interview_coach`) |
+| `DATABASE_URL` | PostgreSQL connection string |
 | `SESSION_SECRET` | Random secret used to sign session cookies |
-| `AI_INTEGRATIONS_OPENAI_API_KEY` | Your OpenAI API key (or Replit AI Integrations key) |
+| `AI_INTEGRATIONS_OPENAI_API_KEY` | OpenAI API key |
 | `AI_INTEGRATIONS_OPENAI_BASE_URL` | OpenAI-compatible base URL (default: `https://api.openai.com/v1`) |
 
-> **On Replit:** All of the above are managed for you automatically. `DATABASE_URL` is provisioned by the built-in PostgreSQL integration, and the AI keys are injected by Replit AI Integrations — no manual setup needed.
+> **On Replit:** All of the above are managed automatically — no `.env` file needed.
 
 ### 3. Set up the database
 
 ```bash
-cd lib/db
-pnpm run push        # Syncs Drizzle schema to your database
-cd ../..
+cd lib/db && pnpm run push && cd ../..
 ```
 
 ### 4. Build shared libraries
 
 ```bash
-pnpm run -r build    # Builds all packages in dependency order
+pnpm run -r build
 ```
 
 ### 5. Run in development
 
-Open two terminals:
-
 ```bash
-# Terminal 1 — API server (http://localhost:8080)
+# Terminal 1 — API server
 pnpm --filter @workspace/api-server run dev
 
-# Terminal 2 — Frontend (http://localhost:3000)
+# Terminal 2 — Frontend
 pnpm --filter @workspace/interview-coach run dev
 ```
 
@@ -147,13 +157,15 @@ The frontend proxies `/api` requests to the API server automatically.
 
 ## Using the App
 
-1. **Home (Pass the Filter)** — Pick a challenge type or browse past sessions.
-2. **Select a Role** — Choose from 12 built-in roles or paste a job posting for a tailored interview.
-3. **Interview Screen** — Zoom-style layout: Sarah (your AI interviewer) appears on the left, chat on the right.
-   - Type or click the microphone to speak your answers.
+1. **Profile** — Upload your resume (PDF, `.txt`, or `.md`) and save job postings for quick access.
+2. **Challenges (Home)** — Pick a mode: Quick Round, Full Session, Answer Lab, or Boss Round.
+3. **Select a Role** — Choose from 12 built-in roles or paste a job posting for a tailored session.
+4. **Interview Screen** — Zoom-style layout with Sarah on the left, chat panel on the right.
+   - Type responses in the chat panel or click the microphone to speak.
    - The avatar's mouth animates in sync with TTS narration.
-   - Per-question and session-level timers keep you honest.
-4. **Feedback** — Click "Get Feedback" at any time (or wait for the session timer to expire) for a readiness score, strengths, and areas to improve.
+   - A control bar in the bottom-left has mic, speaker, inline feedback, and end-session buttons.
+   - The chat panel slides in from the right; a floating button in the bottom-right toggles it.
+5. **Feedback** — Click "Feedback" in the control bar at any time, or let the session timer expire. A readiness score, strengths, and improvement steps are shown on the feedback screen.
 
 ---
 
@@ -168,8 +180,8 @@ Full reference: [`docs/API.md`](docs/API.md)
 | `POST` | `/api/interview/sessions` | Create a new interview session |
 | `GET` | `/api/interview/sessions/:id` | Get session + message history |
 | `DELETE` | `/api/interview/sessions/:id` | Delete a session |
-| `POST` | `/api/interview/sessions/:id/chat` | **SSE** — stream AI reply |
-| `GET` | `/api/interview/sessions/:id/feedback` | Generate/retrieve feedback |
+| `POST` | `/api/interview/sessions/:id/chat` | SSE — stream AI reply |
+| `GET` | `/api/interview/sessions/:id/feedback` | Generate or retrieve feedback |
 | `POST` | `/api/interview/analyze-job` | Analyze a job posting |
 | `POST` | `/api/interview/research-role` | Research a job title |
 | `GET` | `/healthz` | Health check |
@@ -180,7 +192,7 @@ Full reference: [`docs/API.md`](docs/API.md)
 
 Managed by Drizzle ORM (`lib/db/src/schema.ts`). Three tables:
 
-```sql
+```
 conversations      id, title, createdAt
 messages           id, conversationId→conversations, role, content, createdAt
 interview_sessions id, jobRole, jobRoleName, jobContext, conversationId→conversations, createdAt
@@ -196,11 +208,11 @@ cd lib/db && pnpm run push
 
 ## Codegen
 
-The API client and Zod schemas are auto-generated from `lib/api-spec/openapi.yaml`.  
+The API client and Zod schemas are auto-generated from `lib/api-spec/openapi.yaml`.
 **Never edit** files inside `lib/api-client-react/src/generated/` or `lib/api-zod/src/generated/` directly.
 
 ```bash
-# After changing openapi.yaml, regenerate:
+# After changing openapi.yaml:
 pnpm --filter @workspace/api-spec run codegen
 ```
 
@@ -208,7 +220,7 @@ pnpm --filter @workspace/api-spec run codegen
 
 ## Deployment
 
-The project is ready to deploy on Replit with a single click using **Replit Deployments** (Autoscale).
+The project is ready to deploy on Replit with a single click using **Replit Deployments**.
 
 For other platforms:
 
@@ -222,7 +234,7 @@ pnpm --filter @workspace/interview-coach run build
 # Serve artifacts/interview-coach/dist/public with any static file server
 ```
 
-Make sure `DATABASE_URL`, `SESSION_SECRET`, and the AI keys are set in the deployment environment.
+Ensure `DATABASE_URL`, `SESSION_SECRET`, and the AI keys are set in your deployment environment.
 
 ---
 

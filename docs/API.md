@@ -1,8 +1,8 @@
 # API Reference
 
-All endpoints are prefixed with `/api`. The server runs on port `8080` by default.
+All endpoints are prefixed with `/api`. The server runs on port `8080` by default (controlled by the `PORT` environment variable).
 
-Requests and responses use `application/json` unless otherwise stated.
+Requests and responses use `application/json` unless otherwise noted.
 
 ---
 
@@ -31,8 +31,7 @@ Returns the static list of supported job roles.
 ```json
 [
   { "id": "software-engineer", "name": "Software Engineer", "category": "Engineering" },
-  { "id": "data-scientist",    "name": "Data Scientist",    "category": "Data" },
-  ...
+  { "id": "data-scientist",    "name": "Data Scientist",    "category": "Data" }
 ]
 ```
 
@@ -72,15 +71,15 @@ Creates a new session. The AI sends an opening greeting automatically.
 {
   "jobRole": "software-engineer",
   "jobRoleName": "Software Engineer",
-  "jobContext": "Optional: extracted job description text"
+  "jobContext": "Optional: extracted job description or resume context"
 }
 ```
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `jobRole` | string | yes | Role identifier (e.g. `"software-engineer"`) |
-| `jobRoleName` | string | yes | Display name |
-| `jobContext` | string | no | Tailors the interview to a specific posting |
+| `jobRoleName` | string | yes | Human-readable display name |
+| `jobContext` | string | no | Extra context — job posting text, resume text, or past weakness notes — used to tailor the session |
 
 **Response** `201`
 
@@ -115,7 +114,7 @@ Returns a session with its full message history.
     {
       "id": 1,
       "role": "assistant",
-      "content": "Hello! I'm Sarah, your AI interviewer. Let's get started...",
+      "content": "Hi, thanks for coming in today…",
       "createdAt": "2026-04-07T12:00:01.000Z"
     }
   ]
@@ -132,7 +131,7 @@ Returns a session with its full message history.
 
 ### `DELETE /api/interview/sessions/:id`
 
-Permanently deletes a session and all associated messages.
+Permanently deletes a session and all its messages.
 
 **Response** `204 No Content`
 
@@ -140,7 +139,7 @@ Permanently deletes a session and all associated messages.
 
 ### `POST /api/interview/sessions/:id/chat`
 
-**SSE endpoint** — streams the AI's reply token by token.
+**SSE endpoint** — streams the AI interviewer's reply token by token.
 
 **Request Body**
 
@@ -148,31 +147,32 @@ Permanently deletes a session and all associated messages.
 {
   "messages": [
     { "role": "user",      "content": "Tell me about yourself." },
-    { "role": "assistant", "content": "..." },
+    { "role": "assistant", "content": "Sure! I've spent five years…" },
     { "role": "user",      "content": "How do you handle conflict?" }
   ],
-  "context": "Optional job description text",
-  "timeLeft": 1200
+  "context": "Optional job description or resume text",
+  "timeLeft": 540,
+  "questionsLeft": 2
 }
 ```
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `messages` | array | yes | Full conversation so far |
-| `context` | string | no | Job context override |
-| `timeLeft` | number | no | Remaining session time in seconds; prompts the AI to wrap up when low |
+| `messages` | array | yes | Full conversation history so far |
+| `context` | string | no | Job/resume context override |
+| `timeLeft` | number | no | Remaining session time in seconds; Sarah starts wrapping up below ~60 s |
+| `questionsLeft` | number | no | Remaining questions in modes with a question limit; Sarah signals the final question when this is 1 |
 
 **Response** — Server-Sent Events stream
 
 ```
-data: {"delta":"Hello"}
-data: {"delta":", how"}
-data: {"delta":" can I help?"}
+data: {"delta":"Great"}
+data: {"delta":" question"}
+data: {"delta":". Let me explain…"}
 data: [DONE]
 ```
 
-Each `data` line contains a JSON object with a `delta` key (the next token chunk).  
-The stream ends with the literal string `[DONE]`.
+Each `data` line is a JSON object with a `delta` key (the next token chunk). The stream ends with the literal string `[DONE]`.
 
 ---
 
@@ -207,10 +207,13 @@ Generates (or returns cached) AI feedback for the session.
 | `readinessScore` | number | 1–100 job readiness score |
 | `readinessImprovements` | string[] | Actionable steps to raise the score |
 
-**Score colours** (frontend convention):
-- **Green** ≥ 75 — Ready
-- **Amber** ≥ 50 — Getting there
-- **Rose** < 50 — Needs work
+**Score colour convention (frontend):**
+
+| Range | Colour | Label |
+|---|---|---|
+| ≥ 75 | Green | Ready |
+| 50–74 | Amber | Getting there |
+| < 50 | Rose | Needs work |
 
 ---
 
@@ -218,13 +221,13 @@ Generates (or returns cached) AI feedback for the session.
 
 ### `POST /api/interview/analyze-job`
 
-Extracts a structured job summary from a raw job posting.
+Extracts a structured summary from a raw job posting. Used by the frontend when the user pastes a posting on the home screen.
 
 **Request Body**
 
 ```json
 {
-  "jobPosting": "We are looking for a Senior Software Engineer to join our backend team..."
+  "jobPosting": "We are looking for a Senior Software Engineer to join our backend team…"
 }
 ```
 
@@ -233,9 +236,9 @@ Extracts a structured job summary from a raw job posting.
 ```json
 {
   "title": "Senior Software Engineer",
-  "summary": "Backend-focused role requiring 5+ years experience...",
+  "summary": "Backend-focused role requiring 5+ years of experience with distributed systems…",
   "keySkills": ["Node.js", "PostgreSQL", "Distributed Systems"],
-  "responsibilities": ["Design APIs", "Lead code reviews", "Mentor juniors"]
+  "responsibilities": ["Design and own core APIs", "Lead code reviews", "Mentor juniors"]
 }
 ```
 
@@ -243,7 +246,7 @@ Extracts a structured job summary from a raw job posting.
 
 ### `POST /api/interview/research-role`
 
-Generates a profile and common interview topics for a job title.
+Generates a role overview and common interview topics for a given job title. Used to prime the AI when no job posting is provided.
 
 **Request Body**
 
@@ -255,7 +258,7 @@ Generates a profile and common interview topics for a job title.
 
 ```json
 {
-  "overview": "Product Managers own the product vision and roadmap...",
+  "overview": "Product Managers own the product vision and roadmap…",
   "commonTopics": [
     "Prioritization frameworks (RICE, MoSCoW)",
     "Stakeholder management",
@@ -272,7 +275,7 @@ Generates a profile and common interview topics for a job title.
 
 ## Conversations (Low-level)
 
-These endpoints manage the underlying conversation objects used by the interview sessions. You generally don't need to call them directly.
+These endpoints manage the underlying conversation objects used by sessions. You generally don't need to call them directly — the session endpoints handle this for you.
 
 | Method | Path | Description |
 |---|---|---|
@@ -289,13 +292,11 @@ These endpoints manage the underlying conversation objects used by the interview
 All errors return JSON:
 
 ```json
-{
-  "error": "Human-readable message or Zod validation details"
-}
+{ "error": "Human-readable message or Zod validation details" }
 ```
 
 | Status | Meaning |
 |---|---|
-| `400` | Bad request / validation error |
+| `400` | Bad request or validation failure |
 | `404` | Resource not found |
 | `500` | Internal server error |

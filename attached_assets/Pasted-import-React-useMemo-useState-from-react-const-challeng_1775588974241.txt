@@ -1,0 +1,558 @@
+import React, { useMemo, useState } from "react";
+
+const challengeData = [
+  {
+    id: 1,
+    title: "Quick Round",
+    subtitle: "Fast skill check",
+    description: "5 random questions with instant scoring and timer pressure.",
+    stages: "2 stages",
+    icon: "⚡",
+    accent: "#22c55e",
+    tag: "Practice",
+    button: "Enter Challenge",
+    type: "standard",
+  },
+  {
+    id: 2,
+    title: "Full Session",
+    subtitle: "Complete pipeline run",
+    description: "10 questions across categories with role-tailored prompts.",
+    stages: "3 stages",
+    icon: "🏆",
+    accent: "#8b5cf6",
+    tag: "Simulation",
+    button: "Enter Challenge",
+    type: "standard",
+  },
+  {
+    id: 3,
+    title: "Answer Lab",
+    subtitle: "Fix & upgrade responses",
+    description:
+      "Improve weak answers with side-by-side before/after scoring, STAR guidance, and AI coaching.",
+    stages: "2 stages",
+    icon: "🧠",
+    accent: "#14b8a6",
+    tag: "Improve",
+    button: "Open Lab",
+    type: "lab",
+  },
+  {
+    id: 4,
+    title: "Boss Round",
+    subtitle: "High-stakes final interview",
+    description:
+      "Hardest questions. No hints. Strict timer. Pass to unlock Final Round status.",
+    stages: "2 stages",
+    icon: "👑",
+    accent: "#f59e0b",
+    tag: "High Stakes",
+    button: "Start Boss Round",
+    type: "boss",
+  },
+];
+
+const achievements = [
+  { title: "Beat the Clock", status: "Unlocked" },
+  { title: "Shortlisted", status: "In Progress" },
+  { title: "STAR Master", status: "Locked" },
+];
+
+function ScoreRing({ score }) {
+  const angle = (score / 100) * 360;
+  return (
+    <div
+      style={{
+        width: 92,
+        height: 92,
+        borderRadius: "50%",
+        background: `conic-gradient(#ff5a5f ${angle}deg, rgba(255,255,255,0.08) ${angle}deg)`,
+        display: "grid",
+        placeItems: "center",
+        boxShadow: "0 0 24px rgba(0,0,0,0.35)",
+      }}
+    >
+      <div
+        style={{
+          width: 74,
+          height: 74,
+          borderRadius: "50%",
+          background: "#081224",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexDirection: "column",
+          color: "white",
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}
+      >
+        <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1 }}>{score}</div>
+        <div style={{ fontSize: 11, color: "#ff8a8d", marginTop: 2 }}>%</div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value }) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        minWidth: 80,
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        borderRadius: 16,
+        padding: "12px 14px",
+      }}
+    >
+      <div style={{ fontSize: 11, color: "#7f8da8", marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color: "white" }}>{value}</div>
+    </div>
+  );
+}
+
+function ChallengeCard({ item, onOpen }) {
+  const isBoss = item.type === "boss";
+  const isLab = item.type === "lab";
+
+  const background = isBoss
+    ? "linear-gradient(180deg, rgba(245,158,11,0.14), rgba(8,18,36,0.95))"
+    : isLab
+    ? "linear-gradient(180deg, rgba(20,184,166,0.10), rgba(8,18,36,0.95))"
+    : "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(8,18,36,0.95))";
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        borderRadius: 22,
+        padding: 18,
+        background,
+        border: `1px solid ${isBoss ? "rgba(245,158,11,0.45)" : "rgba(255,255,255,0.08)"}`,
+        boxShadow: isBoss
+          ? "0 0 30px rgba(245,158,11,0.16)"
+          : "0 10px 25px rgba(0,0,0,0.18)",
+        overflow: "hidden",
+        minHeight: 220,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 16,
+          right: 16,
+          fontSize: 11,
+          fontWeight: 700,
+          color: isBoss ? "#fbbf24" : "#94a3b8",
+          background: "rgba(255,255,255,0.05)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          borderRadius: 999,
+          padding: "6px 10px",
+        }}
+      >
+        {item.stages}
+      </div>
+
+      <div
+        style={{
+          width: 52,
+          height: 52,
+          borderRadius: 16,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 24,
+          background: `${item.accent}20`,
+          border: `1px solid ${item.accent}55`,
+          marginBottom: 18,
+        }}
+      >
+        {item.icon}
+      </div>
+
+      <div style={{ color: "white", fontWeight: 800, fontSize: 22, marginBottom: 6 }}>
+        {item.title}
+      </div>
+
+      <div style={{ color: item.accent, fontSize: 13, fontWeight: 700, marginBottom: 12 }}>
+        {item.subtitle}
+      </div>
+
+      <div style={{ color: "#94a3b8", fontSize: 14, lineHeight: 1.5, minHeight: 64 }}>
+        {item.description}
+      </div>
+
+      <div
+        style={{
+          marginTop: 18,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          fontSize: 11,
+          fontWeight: 800,
+          letterSpacing: 0.4,
+          color: "#dbeafe",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          borderRadius: 999,
+          padding: "7px 10px",
+        }}
+      >
+        {item.tag}
+      </div>
+
+      <button
+        onClick={() => onOpen(item)}
+        style={{
+          marginTop: 18,
+          width: "100%",
+          border: "none",
+          borderRadius: 14,
+          padding: "14px 16px",
+          fontWeight: 800,
+          fontSize: 14,
+          cursor: "pointer",
+          background: isBoss
+            ? "linear-gradient(90deg, #f59e0b, #fbbf24)"
+            : `linear-gradient(90deg, ${item.accent}, ${item.accent}cc)`,
+          color: isBoss ? "#111827" : "white",
+          boxShadow: "0 10px 20px rgba(0,0,0,0.2)",
+        }}
+      >
+        {item.button} →
+      </button>
+    </div>
+  );
+}
+
+function ResultPanel({ selected }) {
+  if (!selected) {
+    return (
+      <div
+        style={{
+          marginTop: 28,
+          borderRadius: 22,
+          padding: 24,
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.06)",
+          color: "#94a3b8",
+        }}
+      >
+        Select a challenge to preview its game mode and interview purpose.
+      </div>
+    );
+  }
+
+  const details = {
+    "Quick Round": {
+      goal: "Warm up quickly and build response speed.",
+      helps: "Improves timing, fluency, and confidence under pressure.",
+      status: "Best for daily practice",
+    },
+    "Full Session": {
+      goal: "Run a realistic end-to-end AI interview simulation.",
+      helps: "Builds readiness across multiple question types and stages.",
+      status: "Best for mock interview days",
+    },
+    "Answer Lab": {
+      goal: "Turn weak answers into strong, high-scoring responses.",
+      helps: "Improves STAR structure, specificity, and measurable impact.",
+      status: "Best for skill improvement",
+    },
+    "Boss Round": {
+      goal: "Face the hardest interview stage with strict scoring.",
+      helps: "Prepares users for high-pressure final interviews and evaluations.",
+      status: "Best for advanced users",
+    },
+  };
+
+  const current = details[selected.title];
+
+  return (
+    <div
+      style={{
+        marginTop: 28,
+        borderRadius: 24,
+        padding: 24,
+        background:
+          selected.type === "boss"
+            ? "linear-gradient(180deg, rgba(245,158,11,0.12), rgba(255,255,255,0.03))"
+            : "rgba(255,255,255,0.03)",
+        border: `1px solid ${
+          selected.type === "boss" ? "rgba(245,158,11,0.3)" : "rgba(255,255,255,0.06)"
+        }`,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
+        <div
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 18,
+            display: "grid",
+            placeItems: "center",
+            fontSize: 26,
+            background: `${selected.accent}20`,
+            border: `1px solid ${selected.accent}55`,
+          }}
+        >
+          {selected.icon}
+        </div>
+        <div>
+          <div style={{ color: "white", fontSize: 24, fontWeight: 800 }}>{selected.title}</div>
+          <div style={{ color: selected.accent, fontWeight: 700 }}>{selected.subtitle}</div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: 16,
+          marginTop: 18,
+        }}
+      >
+        <InfoBox title="Challenge Goal" value={current.goal} />
+        <InfoBox title="Interview Benefit" value={current.helps} />
+        <InfoBox title="Best Use Case" value={current.status} />
+      </div>
+    </div>
+  );
+}
+
+function InfoBox({ title, value }) {
+  return (
+    <div
+      style={{
+        borderRadius: 18,
+        padding: 18,
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
+      <div style={{ color: "#7f8da8", fontSize: 12, marginBottom: 8 }}>{title}</div>
+      <div style={{ color: "white", lineHeight: 1.5 }}>{value}</div>
+    </div>
+  );
+}
+
+export default function App() {
+  const [selected, setSelected] = useState(null);
+  const readinessScore = 68;
+
+  const heading = useMemo(() => {
+    return selected ? `${selected.title} selected` : "Choose your next challenge";
+  }, [selected]);
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background:
+          "radial-gradient(circle at top, #102348 0%, #081224 45%, #050b16 100%)",
+        padding: 24,
+        fontFamily:
+          'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 1200,
+          margin: "0 auto",
+          color: "white",
+        }}
+      >
+        <div
+          style={{
+            borderRadius: 28,
+            padding: 24,
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.07)",
+            boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+          }}
+        >
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1.3fr 1fr",
+              gap: 24,
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontSize: 12,
+                  letterSpacing: 2,
+                  textTransform: "uppercase",
+                  color: "#6b7a99",
+                  marginBottom: 10,
+                  fontWeight: 700,
+                }}
+              >
+                AI Hiring Readiness
+              </div>
+
+              <h1 style={{ fontSize: 42, lineHeight: 1.05, margin: 0, marginBottom: 14 }}>
+                Pass the Filter
+              </h1>
+
+              <p
+                style={{
+                  margin: 0,
+                  color: "#9fb0ca",
+                  lineHeight: 1.7,
+                  maxWidth: 680,
+                  fontSize: 16,
+                }}
+              >
+                A game-based AI hiring simulator where students train through resume screening,
+                timed interviews, answer repair, and boss-level final rounds.
+              </p>
+
+              <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 22 }}>
+                <StatCard label="Player Level" value="04" />
+                <StatCard label="Best Streak" value="7" />
+                <StatCard label="Sessions" value="12" />
+                <StatCard label="Badges" value="3" />
+              </div>
+            </div>
+
+            <div
+              style={{
+                borderRadius: 24,
+                background: "rgba(5,11,22,0.7)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                padding: 22,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 18,
+              }}
+            >
+              <div>
+                <div style={{ color: "#7f8da8", fontSize: 12, marginBottom: 8 }}>
+                  Current readiness
+                </div>
+                <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 10 }}>
+                  Entry Level
+                </div>
+                <div style={{ color: "#9fb0ca", lineHeight: 1.6 }}>
+                  Improve answer structure and pass Boss Round to unlock the final stage.
+                </div>
+              </div>
+              <ScoreRing score={readinessScore} />
+            </div>
+          </div>
+
+          <div
+            style={{
+              marginTop: 26,
+              padding: 18,
+              borderRadius: 20,
+              background: "linear-gradient(90deg, rgba(16,185,129,0.08), rgba(20,184,166,0.05))",
+              border: "1px solid rgba(16,185,129,0.25)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 18,
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <div style={{ color: "#34d399", fontSize: 12, fontWeight: 800, marginBottom: 6 }}>
+                ACTIVE MISSION
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>AI Interview Pipeline</div>
+              <div style={{ color: "#9fb0ca", marginTop: 4 }}>
+                Complete one simulation, one Answer Lab fix, and one Boss Round attempt.
+              </div>
+            </div>
+
+            <button
+              style={{
+                border: "none",
+                borderRadius: 14,
+                padding: "14px 18px",
+                fontWeight: 800,
+                background: "linear-gradient(90deg, #10b981, #14b8a6)",
+                color: "white",
+                cursor: "pointer",
+              }}
+            >
+              Resume Mission →
+            </button>
+          </div>
+
+          <div style={{ marginTop: 32, marginBottom: 14 }}>
+            <div style={{ color: "#7f8da8", fontSize: 12, fontWeight: 800, letterSpacing: 2 }}>
+              CHALLENGE SELECT
+            </div>
+            <div
+              style={{
+                marginTop: 8,
+                fontSize: 28,
+                fontWeight: 800,
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 8,
+                alignItems: "center",
+              }}
+            >
+              {heading}
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: 18,
+            }}
+          >
+            {challengeData.map((item) => (
+              <ChallengeCard key={item.id} item={item} onOpen={setSelected} />
+            ))}
+          </div>
+
+          <ResultPanel selected={selected} />
+
+          <div style={{ marginTop: 30 }}>
+            <div style={{ color: "#7f8da8", fontSize: 12, fontWeight: 800, letterSpacing: 2 }}>
+              ACHIEVEMENTS
+            </div>
+
+            <div
+              style={{
+                marginTop: 14,
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: 16,
+              }}
+            >
+              {achievements.map((badge, index) => (
+                <div
+                  key={index}
+                  style={{
+                    borderRadius: 18,
+                    padding: 18,
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.06)",
+                  }}
+                >
+                  <div style={{ fontSize: 28, marginBottom: 10 }}>
+                    {index === 0 ? "⏱️" : index === 1 ? "✅" : "⭐"}
+                  </div>
+                  <div style={{ color: "white", fontWeight: 700, marginBottom: 6 }}>
+                    {badge.title}
+                  </div>
+                  <div style={{ color: "#94a3b8", fontSize: 14 }}>{badge.status}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

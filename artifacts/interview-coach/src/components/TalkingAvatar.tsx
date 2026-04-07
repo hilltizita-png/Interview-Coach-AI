@@ -5,28 +5,16 @@ type Feedback = "good" | "needs improvement" | "thinking";
 interface TalkingAvatarProps {
   isSpeaking: boolean;
   feedback?: Feedback;
+  rightOffset?: number;
 }
 
 type MouthShape = "closed" | "small" | "medium" | "wide" | "round";
-
-interface MouthDef {
-  d: string;
-  fill: string;
-}
-
-const MOUTH_DEFS: Record<MouthShape, MouthDef> = {
-  closed: { d: "M 70 98 Q 80 101 90 98", fill: "none" },
-  small:  { d: "M 70 97 Q 80 104 90 97",  fill: "#c0504a" },
-  medium: { d: "M 67 96 Q 80 108 93 96",  fill: "#b84040" },
-  wide:   { d: "M 65 95 Q 80 112 95 95",  fill: "#a03030" },
-  round:  { d: "M 73 96 Q 80 110 87 96",  fill: "#b84040" },
-};
 
 const CSS_LOOP: MouthShape[] = [
   "small", "medium", "wide", "medium", "small", "round", "medium", "closed",
 ];
 
-export default function TalkingAvatar({ isSpeaking, feedback }: TalkingAvatarProps) {
+export default function TalkingAvatar({ isSpeaking, feedback, rightOffset = 0 }: TalkingAvatarProps) {
   const [mouthShape, setMouthShape] = useState<MouthShape>("closed");
   const [blinkState, setBlinkState] = useState(false);
   const [eyeOffset, setEyeOffset] = useState({ x: 0, y: 0 });
@@ -43,10 +31,7 @@ export default function TalkingAvatar({ isSpeaking, feedback }: TalkingAvatarPro
 
   useEffect(() => {
     if (!isSpeaking) {
-      if (cssLoopRef.current) {
-        clearInterval(cssLoopRef.current);
-        cssLoopRef.current = null;
-      }
+      if (cssLoopRef.current) clearInterval(cssLoopRef.current);
       hasBoundaryRef.current = false;
       setMouthShape("closed");
       return;
@@ -60,13 +45,10 @@ export default function TalkingAvatar({ isSpeaking, feedback }: TalkingAvatarPro
         shapeIdxRef.current = (shapeIdxRef.current + 1) % CSS_LOOP.length;
         setMouthShape(CSS_LOOP[shapeIdxRef.current]);
       }
-    }, 185);
+    }, 160);
 
     return () => {
-      if (cssLoopRef.current) {
-        clearInterval(cssLoopRef.current);
-        cssLoopRef.current = null;
-      }
+      if (cssLoopRef.current) clearInterval(cssLoopRef.current);
     };
   }, [isSpeaking]);
 
@@ -94,8 +76,18 @@ export default function TalkingAvatar({ isSpeaking, feedback }: TalkingAvatarPro
         setBlinkState(true);
         setTimeout(() => {
           setBlinkState(false);
-          scheduleBlink();
-        }, 140);
+          if (Math.random() > 0.8) {
+            setTimeout(() => {
+              setBlinkState(true);
+              setTimeout(() => {
+                setBlinkState(false);
+                scheduleBlink();
+              }, 120);
+            }, 100);
+          } else {
+            scheduleBlink();
+          }
+        }, 120);
       }, delay);
     };
     scheduleBlink();
@@ -108,8 +100,8 @@ export default function TalkingAvatar({ isSpeaking, feedback }: TalkingAvatarPro
     const scheduleEyeMove = () => {
       const delay = 1800 + Math.random() * 2500;
       eyeTimerRef.current = setTimeout(() => {
-        const maxX = isSpeaking ? 2.5 : 1.8;
-        const maxY = isSpeaking ? 1.8 : 1.4;
+        const maxX = isSpeaking ? 3.0 : 1.5;
+        const maxY = isSpeaking ? 2.0 : 1.0;
         setEyeOffset({
           x: (Math.random() - 0.5) * maxX * 2,
           y: (Math.random() - 0.5) * maxY * 2,
@@ -143,9 +135,9 @@ export default function TalkingAvatar({ isSpeaking, feedback }: TalkingAvatarPro
     const doNod = () => {
       const delay = 1200 + Math.random() * 2000;
       nodTimerRef.current = setTimeout(() => {
-        setNodAngle(-4);
+        setNodAngle(-1.5);
         setTimeout(() => {
-          setNodAngle(2);
+          setNodAngle(1.0);
           setTimeout(() => {
             setNodAngle(0);
             doNod();
@@ -159,199 +151,277 @@ export default function TalkingAvatar({ isSpeaking, feedback }: TalkingAvatarPro
     };
   }, [isSpeaking]);
 
-  const breathY = Math.sin(breathPhase * 0.07) * 1.2;
-  const breathScale = 1 + Math.sin(breathPhase * 0.07) * 0.003;
-
-  const currentMouth = isSpeaking ? MOUTH_DEFS[mouthShape] : MOUTH_DEFS.closed;
+  const breathY = Math.sin(breathPhase * 0.05) * 2.5;
+  const breathScale = 1 + Math.sin(breathPhase * 0.05) * 0.002;
   const eyeScaleY = blinkState ? 0.05 : 1;
 
-  const isGood = feedback === "good";
-  const borderColor = isGood
-    ? "#22c55e"
-    : isSpeaking
-    ? "#0ea5e9"
-    : "#334155";
-  const glowColor = isGood
-    ? "rgba(34,197,94,0.35)"
-    : isSpeaking
-    ? "rgba(14,165,233,0.30)"
-    : "transparent";
-  const glowSpread = isSpeaking || isGood ? "8px" : "0px";
+  const getMouthPaths = (shape: MouthShape, isGood: boolean) => {
+    const s = isGood ? -7 : -3.5;
+    const cy = 288;
 
-  const hairColor = "#3d2b1f";
-  const suitColor = "#1c3d5a";
-  const shirtColor = "#f8f8ff";
-  const tieColor = "#8b1a1a";
-  const eyeIrisColor = "#2d3a4a";
-  const lipColor = isGood ? "#d06060" : "#b85050";
+    switch (shape) {
+      case "closed":
+        return {
+          inner: "",
+          teeth: "",
+          upperLip: `M160 ${cy+s} Q200 ${cy-10} 240 ${cy+s} Q200 ${cy-1} 160 ${cy+s} Z`,
+          lowerLip: `M160 ${cy+s} Q200 ${cy+14} 240 ${cy+s} Q200 ${cy+2} 160 ${cy+s} Z`,
+          centerLine: `M160 ${cy+s} Q200 ${cy+5} 240 ${cy+s}`
+        };
+      case "small":
+        return {
+          inner: `M165 ${cy-2+s} Q200 ${cy-6} 235 ${cy-2+s} Q200 ${cy+8} 165 ${cy-2+s} Z`,
+          teeth: `M168 ${cy-2+s} Q200 ${cy-5} 232 ${cy-2+s} L230 ${cy} Q200 ${cy+2} 170 ${cy} Z`,
+          upperLip: `M165 ${cy-2+s} Q200 ${cy-14} 235 ${cy-2+s} Q200 ${cy-6} 165 ${cy-2+s} Z`,
+          lowerLip: `M165 ${cy-2+s} Q200 ${cy+16} 235 ${cy-2+s} Q200 ${cy+8} 165 ${cy-2+s} Z`,
+          centerLine: ""
+        };
+      case "medium":
+        return {
+          inner: `M160 ${cy-2+s} Q200 ${cy-8} 240 ${cy-2+s} Q200 ${cy+15} 160 ${cy-2+s} Z`,
+          teeth: `M163 ${cy-2+s} Q200 ${cy-7} 237 ${cy-2+s} L233 ${cy+1} Q200 ${cy+4} 167 ${cy+1} Z`,
+          upperLip: `M160 ${cy-2+s} Q200 ${cy-16} 240 ${cy-2+s} Q200 ${cy-8} 160 ${cy-2+s} Z`,
+          lowerLip: `M160 ${cy-2+s} Q200 ${cy+22} 240 ${cy-2+s} Q200 ${cy+15} 160 ${cy-2+s} Z`,
+          centerLine: ""
+        };
+      case "wide":
+        return {
+          inner: `M155 ${cy+s} Q200 ${cy-10} 245 ${cy+s} Q200 ${cy+22} 155 ${cy+s} Z`,
+          teeth: `M158 ${cy+s} Q200 ${cy-8} 242 ${cy+s} L238 ${cy+3} Q200 ${cy+6} 162 ${cy+3} Z`,
+          upperLip: `M155 ${cy+s} Q200 ${cy-18} 245 ${cy+s} Q200 ${cy-10} 155 ${cy+s} Z`,
+          lowerLip: `M155 ${cy+s} Q200 ${cy+30} 245 ${cy+s} Q200 ${cy+22} 155 ${cy+s} Z`,
+          centerLine: ""
+        };
+      case "round":
+        return {
+          inner: `M175 ${cy+4+s} Q200 ${cy-8} 225 ${cy+4+s} Q200 ${cy+20} 175 ${cy+4+s} Z`,
+          teeth: `M178 ${cy+3+s} Q200 ${cy-5} 222 ${cy+3+s} L220 ${cy+2} Q200 ${cy+4} 180 ${cy+2} Z`,
+          upperLip: `M175 ${cy+4+s} Q200 ${cy-16} 225 ${cy+4+s} Q200 ${cy-8} 175 ${cy+4+s} Z`,
+          lowerLip: `M175 ${cy+4+s} Q200 ${cy+28} 225 ${cy+4+s} Q200 ${cy+20} 175 ${cy+4+s} Z`,
+          centerLine: ""
+        };
+    }
+  };
+
+  const isGood = feedback === "good";
+  const m = getMouthPaths(mouthShape, isGood);
 
   return (
-    <div style={{ position: "relative", width: "100%", maxWidth: 320 }}>
-      {/* Video tile */}
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-          aspectRatio: "3 / 4",
-          borderRadius: 14,
-          overflow: "hidden",
-          border: `2px solid ${borderColor}`,
-          boxShadow: `0 0 0 ${glowSpread} ${glowColor}, 0 8px 40px rgba(0,0,0,0.5)`,
-          transition: "border-color 0.3s, box-shadow 0.4s",
-          background: "#0d1b2a",
-        }}
-      >
-        <svg
-          viewBox="0 0 160 200"
-          xmlns="http://www.w3.org/2000/svg"
-          style={{ width: "100%", height: "100%", display: "block" }}
-        >
-          <defs>
-            <clipPath id="ta-clip">
-              <rect width="160" height="200" rx="0" />
-            </clipPath>
-            <radialGradient id="ta-bg" cx="50%" cy="30%" r="80%">
-              <stop offset="0%" stopColor="#1a2f4a" />
-              <stop offset="100%" stopColor="#0a1625" />
-            </radialGradient>
-            <radialGradient id="ta-skin" cx="48%" cy="42%" r="55%">
-              <stop offset="0%" stopColor="#fde0be" />
-              <stop offset="100%" stopColor="#e8b98a" />
-            </radialGradient>
-            <radialGradient id="ta-shine" cx="35%" cy="30%" r="40%">
-              <stop offset="0%" stopColor="white" stopOpacity="0.85" />
-              <stop offset="100%" stopColor="white" stopOpacity="0" />
-            </radialGradient>
-            <linearGradient id="ta-nameplate" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="transparent" />
-              <stop offset="100%" stopColor="rgba(0,0,0,0.75)" />
-            </linearGradient>
-          </defs>
+    <div style={{
+      position: "absolute",
+      top: 0,
+      left: 0,
+      bottom: 0,
+      right: rightOffset,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "linear-gradient(150deg, #1e1830 0%, #16202e 45%, #0e1520 100%)",
+      transition: "right 0.28s cubic-bezier(0.25,0.46,0.45,0.94)",
+    }}>
+      <div style={{ position: "relative", height: "90%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg
+            viewBox="0 0 400 500"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{
+              height: "100%",
+              width: "auto",
+              display: "block",
+              filter: (isSpeaking || isGood)
+                ? `drop-shadow(0 0 ${isGood ? "18px" : "12px"} ${isGood ? "rgba(34,197,94,0.5)" : "rgba(14,165,233,0.4)"})`
+                : "drop-shadow(0 8px 32px rgba(0,0,0,0.7))",
+              transition: "filter 0.4s",
+            }}
+          >
+            <defs>
+              <filter id="drop-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="6" stdDeviation="8" floodColor="#000" floodOpacity="0.35"/>
+              </filter>
+              <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#000" floodOpacity="0.2"/>
+              </filter>
+              <radialGradient id="skin-base" cx="50%" cy="45%" r="55%">
+                <stop offset="0%" stopColor="#ffd8c2" />
+                <stop offset="60%" stopColor="#f3bba0" />
+                <stop offset="100%" stopColor="#db8f72" />
+              </radialGradient>
+              <radialGradient id="blush" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#ff7b65" stopOpacity="0.45" />
+                <stop offset="100%" stopColor="#ff7b65" stopOpacity="0" />
+              </radialGradient>
+              <linearGradient id="hair-base" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#4A1E0E" />
+                <stop offset="40%" stopColor="#8A3E1B" />
+                <stop offset="100%" stopColor="#2E1106" />
+              </linearGradient>
+              <linearGradient id="hair-highlight" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#C96836" stopOpacity="0.8"/>
+                <stop offset="100%" stopColor="#C96836" stopOpacity="0"/>
+              </linearGradient>
+              <radialGradient id="iris" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#7a3411" />
+                <stop offset="70%" stopColor="#3d1502" />
+                <stop offset="100%" stopColor="#1a0700" />
+              </radialGradient>
+              <linearGradient id="upper-lip" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#e87869" />
+                <stop offset="100%" stopColor="#c75040" />
+              </linearGradient>
+              <linearGradient id="lower-lip" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#de5d4e" />
+                <stop offset="100%" stopColor="#eba096" />
+              </linearGradient>
+              <linearGradient id="suit-base" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#3b3e42" />
+                <stop offset="100%" stopColor="#1a1c1f" />
+              </linearGradient>
+              <linearGradient id="shirt-base" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="100%" stopColor="#d1d5db" />
+              </linearGradient>
+              <linearGradient id="ui-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="transparent" />
+                <stop offset="100%" stopColor="rgba(0,0,0,0.8)" />
+              </linearGradient>
+            </defs>
 
-          <g clipPath="url(#ta-clip)">
-            <rect width="160" height="200" fill="url(#ta-bg)" />
+            <g transform={`translate(0, ${breathY}) scale(${breathScale})`} style={{ transformOrigin: "200px 500px" }}>
+              <path
+                d="M100 150 C30 220 20 380 70 480 C110 500 150 480 200 480 C250 480 290 500 330 480 C380 380 370 220 300 150 Z"
+                fill="url(#hair-base)"
+                filter="url(#drop-shadow)"
+              />
+              <path d="M40 500 L60 380 Q100 340 200 340 Q300 340 340 380 L360 500 Z" fill="url(#suit-base)" filter="url(#drop-shadow)"/>
+              <path d="M140 350 L200 420 L260 350 L200 340 Z" fill="url(#shirt-base)"/>
+              <path d="M135 345 L185 410 L180 345 Z" fill="#ffffff" filter="url(#soft-shadow)"/>
+              <path d="M265 345 L215 410 L220 345 Z" fill="#ffffff" filter="url(#soft-shadow)"/>
+              <path d="M100 365 L170 480 L80 500 Z" fill="#2d3033" filter="url(#soft-shadow)"/>
+              <path d="M300 365 L230 480 L320 500 Z" fill="#2d3033" filter="url(#soft-shadow)"/>
 
-            <g transform={`translate(80, ${80 + breathY}) scale(${breathScale}) translate(-80, -80)`}>
-              <g transform={`rotate(${nodAngle}, 80, 105)`} style={{ transition: "transform 0.18s ease-out" }}>
-
-                <ellipse cx="80" cy="150" rx="52" ry="7" fill="rgba(0,0,0,0.18)" />
-
-                <rect x="18" y="127" width="124" height="82" rx="6" fill={suitColor} />
-                <polygon points="67,127 80,156 93,127 80,134" fill={shirtColor} />
-                <rect x="77" y="127" width="6" height="32" fill={tieColor} />
-                <polygon points="80,157 74.5,167 85.5,167" fill={tieColor} />
-                <rect x="18" y="127" width="36" height="16" rx="4" fill={suitColor} />
-                <rect x="106" y="127" width="36" height="16" rx="4" fill={suitColor} />
-
-                <ellipse cx="80" cy="83" rx="30" ry="33" fill="url(#ta-skin)" />
-                <ellipse cx="80" cy="79" rx="28" ry="30" fill="#f5cba7" />
-
+              <g transform={`rotate(${nodAngle}, 200, 260)`} style={{ transition: "transform 0.1s ease-out" }}>
+                <path d="M165 290 L165 360 Q200 370 235 360 L235 290 Z" fill="#db8f72"/>
+                <path d="M165 290 L165 320 Q200 340 235 320 L235 290 Z" fill="#b06447" opacity="0.6"/>
+                <path d="M115 220 C100 220 100 260 120 265" fill="url(#skin-base)"/>
+                <path d="M285 220 C300 220 300 260 280 265" fill="url(#skin-base)"/>
                 <path
-                  d="M 51 71 Q 55 40 80 36 Q 105 40 109 71 Q 110 64 107 54 Q 99 36 80 34 Q 61 36 53 54 Q 50 64 51 71 Z"
-                  fill={hairColor}
+                  d="M125 210 C125 310 160 340 200 340 C240 340 275 310 275 210 C275 140 240 120 200 120 C160 120 125 140 125 210 Z"
+                  fill="url(#skin-base)"
+                  filter="url(#drop-shadow)"
                 />
-                <path d="M 50 72 Q 48 80 50 87 Q 51 80 52 71" fill={hairColor} />
-                <path d="M 110 72 Q 112 80 110 87 Q 109 80 108 71" fill={hairColor} />
+                <path
+                  d="M125 210 C125 310 160 340 200 340 L200 330 C165 330 135 300 135 210 C135 150 160 130 200 130 L200 120 C160 120 125 140 125 210 Z"
+                  fill="#b06447" opacity="0.3"
+                />
+                <path
+                  d="M275 210 C275 310 240 340 200 340 L200 330 C235 330 265 300 265 210 C265 150 240 130 200 130 L200 120 C240 120 275 140 275 210 Z"
+                  fill="#b06447" opacity="0.15"
+                />
+                <ellipse cx="155" cy="245" rx="22" ry="14" fill="url(#blush)" />
+                <ellipse cx="245" cy="245" rx="22" ry="14" fill="url(#blush)" />
 
-                <g transform={`translate(${eyeOffset.x}, ${eyeOffset.y})`}>
-                  <ellipse cx="66" cy="80" rx="7.5" ry={7.5 * eyeScaleY} fill="white" />
-                  <ellipse cx="66" cy="80" rx="4.5" ry={4.5 * eyeScaleY} fill={eyeIrisColor} />
-                  <ellipse cx="66" cy="80" rx="2.8" ry={2.8 * eyeScaleY} fill="#0a0e14" />
-                  <ellipse cx="64.2" cy="78.2" rx="1.4" ry={1.4 * eyeScaleY} fill="url(#ta-shine)" />
-
-                  <ellipse cx="94" cy="80" rx="7.5" ry={7.5 * eyeScaleY} fill="white" />
-                  <ellipse cx="94" cy="80" rx="4.5" ry={4.5 * eyeScaleY} fill={eyeIrisColor} />
-                  <ellipse cx="94" cy="80" rx="2.8" ry={2.8 * eyeScaleY} fill="#0a0e14" />
-                  <ellipse cx="92.2" cy="78.2" rx="1.4" ry={1.4 * eyeScaleY} fill="url(#ta-shine)" />
+                <g transform={`scale(1, ${eyeScaleY})`} style={{ transformOrigin: "200px 215px", transition: "transform 0.08s ease" }}>
+                  <path d="M140 220 Q160 200 176 220 Q160 232 140 220 Z" fill="#ffffff" filter="url(#soft-shadow)"/>
+                  <g clipPath="url(#left-eye-clip)">
+                    <clipPath id="left-eye-clip">
+                      <path d="M140 220 Q160 200 176 220 Q160 232 140 220 Z" />
+                    </clipPath>
+                    <g transform={`translate(${eyeOffset.x}, ${eyeOffset.y})`}>
+                      <circle cx="158" cy="216" r="12" fill="url(#iris)"/>
+                      <circle cx="158" cy="216" r="6" fill="#0d0400"/>
+                      <circle cx="153" cy="211" r="3.5" fill="#ffffff" opacity="0.9"/>
+                      <circle cx="163" cy="221" r="1.5" fill="#ffffff" opacity="0.7"/>
+                    </g>
+                  </g>
+                  <path d="M224 220 Q240 200 260 220 Q240 232 224 220 Z" fill="#ffffff" filter="url(#soft-shadow)"/>
+                  <g clipPath="url(#right-eye-clip)">
+                    <clipPath id="right-eye-clip">
+                      <path d="M224 220 Q240 200 260 220 Q240 232 224 220 Z" />
+                    </clipPath>
+                    <g transform={`translate(${eyeOffset.x}, ${eyeOffset.y})`}>
+                      <circle cx="242" cy="216" r="12" fill="url(#iris)"/>
+                      <circle cx="242" cy="216" r="6" fill="#0d0400"/>
+                      <circle cx="237" cy="211" r="3.5" fill="#ffffff" opacity="0.9"/>
+                      <circle cx="247" cy="221" r="1.5" fill="#ffffff" opacity="0.7"/>
+                    </g>
+                  </g>
+                  <path d="M136 222 Q160 196 180 222" fill="none" stroke="#2b1104" strokeWidth="4.5" strokeLinecap="round"/>
+                  <path d="M136 222 Q130 215 125 210" fill="none" stroke="#2b1104" strokeWidth="3.5" strokeLinecap="round"/>
+                  <path d="M220 222 Q240 196 264 222" fill="none" stroke="#2b1104" strokeWidth="4.5" strokeLinecap="round"/>
+                  <path d="M264 222 Q270 215 275 210" fill="none" stroke="#2b1104" strokeWidth="3.5" strokeLinecap="round"/>
                 </g>
 
-                <path d="M 59 76.5 Q 66 73.5 72 76.5" fill="none" stroke="#b08860" strokeWidth="1.3" strokeLinecap="round" />
-                <path d="M 88 76.5 Q 94 73.5 101 76.5" fill="none" stroke="#b08860" strokeWidth="1.3" strokeLinecap="round" />
+                <path d="M130 190 Q150 175 175 185" fill="none" stroke="#361a0b" strokeWidth="6" strokeLinecap="round"/>
+                <path d="M270 190 Q250 175 225 185" fill="none" stroke="#361a0b" strokeWidth="6" strokeLinecap="round"/>
 
-                <ellipse cx="67" cy="91" rx="4.5" ry="2.5" fill="#e8a080" opacity="0.38" />
-                <ellipse cx="93" cy="91" rx="4.5" ry="2.5" fill="#e8a080" opacity="0.38" />
+                <path d="M190 255 Q200 262 210 255 Q200 266 190 255 Z" fill="#cf7c5b" opacity="0.6"/>
+                <path d="M200 230 L200 250" fill="none" stroke="#ffffff" strokeWidth="4" opacity="0.25" strokeLinecap="round" />
+                <circle cx="200" cy="254" r="4" fill="#ffffff" opacity="0.35" />
 
-                <ellipse cx="80" cy="93.5" rx="3.2" ry="2.2" fill="#c8906a" />
+                <g fill="#9e4c2f" opacity="0.6">
+                  <circle cx="180" cy="255" r="1.2" /><circle cx="185" cy="260" r="1.5" />
+                  <circle cx="175" cy="262" r="1" /><circle cx="190" cy="265" r="1.2" />
+                  <circle cx="220" cy="255" r="1.2" /><circle cx="215" cy="260" r="1.5" />
+                  <circle cx="225" cy="262" r="1" /><circle cx="210" cy="265" r="1.2" />
+                  <circle cx="160" cy="255" r="1" /><circle cx="240" cy="255" r="1" />
+                  <circle cx="150" cy="258" r="1.5" /><circle cx="250" cy="258" r="1.5" />
+                </g>
 
-                {isGood ? (
-                  <>
-                    <path
-                      d="M 64 96 Q 80 115 96 96"
-                      fill="none"
-                      stroke={lipColor}
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    />
-                    <path d="M 63 95 Q 65 99.5 68 98.5" fill="none" stroke={lipColor} strokeWidth="1.2" strokeLinecap="round" />
-                    <path d="M 97 95 Q 95 99.5 92 98.5" fill="none" stroke={lipColor} strokeWidth="1.2" strokeLinecap="round" />
-                  </>
-                ) : (
-                  <>
-                    <path
-                      d={currentMouth.d}
-                      fill={isSpeaking && mouthShape !== "closed" ? currentMouth.fill : "none"}
-                      stroke={lipColor}
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                    />
-                    {isSpeaking && mouthShape !== "closed" && (
-                      <path
-                        d={currentMouth.d}
-                        fill="rgba(60,15,15,0.55)"
-                        stroke="none"
-                      />
-                    )}
-                  </>
-                )}
+                <g filter="url(#soft-shadow)">
+                  {m.inner && <path d={m.inner} fill="#330b0b" />}
+                  {m.teeth && <path d={m.teeth} fill="#f8f8f8" />}
+                  <path d={m.upperLip} fill="url(#upper-lip)" />
+                  <path d={m.lowerLip} fill="url(#lower-lip)" />
+                  {m.centerLine && (
+                    <path d={m.centerLine} fill="none" stroke="#a13325" strokeWidth="2.5" strokeLinecap="round" />
+                  )}
+                </g>
 
+                <path
+                  d="M230 100 C150 90 70 140 65 240 C60 340 100 370 70 470 C50 520 120 500 150 450 C180 390 110 340 120 270 C130 190 170 140 230 130 Z"
+                  fill="url(#hair-base)"
+                  filter="url(#drop-shadow)"
+                />
+                <path
+                  d="M230 100 C290 95 335 140 335 220 C335 290 300 310 320 400 C330 450 340 480 300 490 C260 500 270 440 280 390 C290 330 280 290 280 250 C280 200 260 150 230 130 Z"
+                  fill="url(#hair-base)"
+                  filter="url(#drop-shadow)"
+                />
+                <path d="M125 160 C100 200 105 260 120 300" fill="none" stroke="url(#hair-highlight)" strokeWidth="6" strokeLinecap="round" opacity="0.8"/>
+                <path d="M285 160 C305 200 300 260 280 300" fill="none" stroke="url(#hair-highlight)" strokeWidth="6" strokeLinecap="round" opacity="0.8"/>
+                <path d="M90 360 C75 400 80 440 115 460" fill="none" stroke="url(#hair-highlight)" strokeWidth="8" strokeLinecap="round" opacity="0.7"/>
+                <path d="M305 350 C325 380 320 420 290 460" fill="none" stroke="url(#hair-highlight)" strokeWidth="7" strokeLinecap="round" opacity="0.6"/>
               </g>
             </g>
 
-            {/* Bottom name-plate gradient */}
-            <rect x="0" y="155" width="160" height="45" fill="url(#ta-nameplate)" />
-          </g>
-        </svg>
-
-        {/* Name plate overlay */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            padding: "10px 12px 10px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <span style={{ color: "white", fontSize: 13, fontWeight: 600, letterSpacing: "0.01em", textShadow: "0 1px 4px rgba(0,0,0,0.6)" }}>
-            Sarah · AI Interviewer
-          </span>
-          {isSpeaking && (
-            <span style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              color: "#38bdf8",
-              fontSize: 11,
-              fontWeight: 600,
-            }}>
-              <span style={{
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: "#38bdf8",
-                animation: "avatar-speaking-dot 0.9s ease-in-out infinite",
-                display: "inline-block",
-              }} />
-              Speaking
-            </span>
-          )}
-        </div>
+            <rect x="0" y="420" width="400" height="80" fill="url(#ui-grad)"/>
+          </svg>
       </div>
 
-      {/* Speaking animation keyframes injected once */}
+      {/* Nameplate — anchored to the bottom-left of the full area */}
+      <div style={{
+        position: "absolute",
+        bottom: 90,
+        left: 20,
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        background: "rgba(10,18,32,0.74)",
+        backdropFilter: "blur(12px)",
+        borderRadius: 20,
+        padding: "5px 14px 5px 10px",
+        border: "1px solid rgba(255,255,255,0.14)",
+      }}>
+        <span style={{
+          width: 8, height: 8, borderRadius: "50%",
+          background: isSpeaking ? "#38bdf8" : "rgba(255,255,255,0.4)",
+          display: "inline-block", flexShrink: 0,
+          animation: isSpeaking ? "avatar-speaking-dot 0.9s ease-in-out infinite" : "none",
+        }} />
+        <span style={{ color: "white", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>
+          Sarah · AI Interviewer
+        </span>
+      </div>
+
       <style>{`
         @keyframes avatar-speaking-dot {
           0%, 100% { opacity: 1; transform: scale(1); }
